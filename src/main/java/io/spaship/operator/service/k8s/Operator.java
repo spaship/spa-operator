@@ -5,7 +5,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.StatefulSet;
 import io.fabric8.kubernetes.api.model.networking.v1.Ingress;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.internal.readiness.Readiness;
+import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.smallrye.mutiny.Uni;
@@ -270,13 +270,13 @@ public class Operator implements Operations {
   private OperationResponse applyDeleteResourceList(Environment environment, KubernetesList resourceList) {
     LOG.debug("applying delete on resources");
     //Should we delete the pvs as well? will that be a good idea?
-    boolean isDeleted = k8sClient.resourceList(resourceList).inNamespace(environment.getNameSpace()).delete();
+    var isDeleted = k8sClient.resourceList(resourceList).inNamespace(environment.getNameSpace()).delete();
     environment.setOperationPerformed(true);
     var or = OperationResponse.builder().environment(environment)
       .sideCarServiceUrl("NA")
       .originatedFrom(this.getClass().toString());
     or.status(3);
-    if (!isDeleted)
+    if (isDeleted.isEmpty())
       or.status(0).errorMessage("unable to delete the resources");
     return or.build();
   }
