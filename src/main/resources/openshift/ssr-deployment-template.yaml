@@ -1,0 +1,194 @@
+# 1.image repo link, 2. config-map-value 3.Resource limit, context-path must start with a /
+kind: "Template"
+apiVersion: "v1"
+metadata:
+  name: "deployment-template"
+labels:
+  template: "environment-template"
+  app: SPAS001
+  paas.redhat.com/appcode: ${appcode}
+objects:
+  - kind: ConfigMap
+    apiVersion: v1
+    metadata:
+      name: ${WEBSITE}-${APP}-${ENV}
+      labels:
+        website: ${WEBSITE}
+        environment: ${ENV}
+        app: ${APP}
+        app.mpp.io/managed-by: spaship
+        paas.redhat.com/appcode: ${SPASHIP-APPCODE}
+    data:
+      NODE_EXTRA_CA_CERTS: "/var/run/secrets/redhat-ca-bundle/ca-bundle.crt"
+      BASE_PATH: "${CONTEXT-PATH}"
+  - kind: Service
+    apiVersion: v1
+    metadata:
+      name: ${WEBSITE}-${APP}-${ENV}
+      labels:
+        website: ${WEBSITE}
+        environment: ${ENV}
+        app: ${APP}
+        app.mpp.io/managed-by: spaship
+        paas.redhat.com/appcode: ${SPASHIP-APPCODE}
+    spec:
+      ports:
+        - port: 8080
+          targetPort: 8080
+          name: http
+      selector:
+        website: ${WEBSITE}
+        environment: ${ENV}
+        app: ${APP}
+        app.mpp.io/managed-by: spaship
+  - kind: Route
+    apiVersion: route.openshift.io/v1
+    metadata:
+      name: ${WEBSITE}-${APP}-${ENV}
+      labels:
+        shard: ${SHARD}
+        paas.redhat.com/appcode: ${SPASHIP-APPCODE}
+      annotations:
+        #haproxy.router.openshift.io/disable_cookies: 'true'
+        haproxy.router.openshift.io/timeout: 5m
+        #haproxy.router.openshift.io/rewrite-target: "${REWRITE-PATH}"
+    spec:
+      host: ${WEBSITE}-${ENV}.${ROUTER-DOMAIN}
+      path: ${CONTEXT-PATH}
+      to:
+        kind: Service
+        name: ${WEBSITE}-${APP}-${ENV}
+      port:
+        targetPort: 8080
+      tls:
+        termination: edge
+        insecureEdgeTerminationPolicy: Redirect
+      wildcardPolicy: None
+  - kind: Deployment
+    apiVersion: apps/v1
+    metadata:
+      name: ${WEBSITE}-${APP}-${ENV}
+      website: ${WEBSITE}
+      labels:
+        website: ${WEBSITE}
+        environment: ${ENV}
+        app: ${APP}
+        app.mpp.io/managed-by: spaship
+        app.kubernetes.io/part-of: ${WEBSITE}-${ENV}
+        app.openshift.io/runtime: js
+        paas.redhat.com/appcode: ${SPASHIP-APPCODE}
+    spec:
+      selector:
+        matchLabels:
+          website: ${WEBSITE}
+          environment: ${ENV}
+          app: ${APP}
+          app.mpp.io/managed-by: spaship
+      replicas: 1
+      template:
+        metadata:
+          labels:
+            website: ${WEBSITE}
+            environment: ${ENV}
+            app: ${APP}
+            app.mpp.io/managed-by: spaship
+        spec:
+          containers:
+            # Main container to serve data
+            - name: app-container
+              image: "${IMAGE-URL}"
+              imagePullPolicy: Always
+              resources:
+                requests:
+                  cpu: ${RESOURCE-REQ-CPU}
+                  memory: ${RESOURCE-REQ-MEM}
+                limits:
+                  cpu: ${RESOURCE-LIM-CPU}
+                  memory: ${RESOURCE-LIM-MEM}
+              ports:
+                - containerPort: 8080
+              livenessProbe:
+                httpGet:
+                  path: "${HEALTH-CHECK-PATH}"
+                  port: 8080
+                initialDelaySeconds: 2
+                failureThreshold: 10
+                periodSeconds: 10
+              readinessProbe:
+                httpGet:
+                  path: "${HEALTH-CHECK-PATH}"
+                  port: 8080
+                initialDelaySeconds: 2
+                failureThreshold: 5
+                periodSeconds: 10
+              envFrom:
+                - configMapRef:
+                    name: ${WEBSITE}-${APP}-${ENV}
+              volumeMounts:
+                - name: ca-crt
+                  mountPath: /var/run/secrets/redhat-ca-bundle
+          volumes:
+            - name: ca-crt
+              configMap:
+                name: redhat-ca-bundle
+parameters:
+  - name: "IMAGE-URL"
+    value: "quay.io/spaship/ssr-demo-one:latest"
+    description: "Container image url"
+    required: false
+  - name: "WEBSITE"
+    value: "demonstration"
+    description: "Name of the website or web property"
+    required: false
+  - name: "APP"
+    value: "myweb"
+    description: "Name of the application SPA"
+    required: false
+  - name: "ENV"
+    value: "dev"
+    description: "Name of the environment"
+    required: false
+  - name: "SPASHIP-APPCODE"
+    value: "SPAS001"
+    description: "App code of the platform, used for mp+ maintenance purpose"
+    required: false
+  - name: "SHARD"
+    value: "internal"
+    description: "shared required for enabling a route in mp+"
+    required: false
+  - name: "ROUTER-DOMAIN"
+    value: "apps.int.grey.dev.iad2.dc.paas.redhat.com"
+    description: "Router domain, used for constructing the url"
+    required: false
+  - name: "CONTEXT-PATH"
+    value: ""
+    description: "context path under which the application will be deployed."
+    required: false
+  - name: "RESOURCE-REQ-CPU"
+    value: "200m"
+    description: "minimum cpu for the app"
+    required: false
+  - name: "RESOURCE-REQ-MEM"
+    value: "256Mi"
+    description: "minimum ram required for the app"
+    required: false
+  - name: "RESOURCE-LIM-CPU"
+    value: "300m"
+    description: "Maximum cpu required for the app"
+    required: false
+  - name: "RESOURCE-LIM-MEM"
+    value: "512Mi"
+    description: "Maximum ram required for the app"
+    required: false
+  - name: "CPORT"
+    value: 8080
+    description: "container and default port number for the application"
+    required: false
+  - name: "HEALTH-CHECK-PATH"
+    value: "/"
+    description: "health check path for determining pod lveness and readiness status"
+    required: false
+  - name: "REWRITE-PATH"
+    value: "/"
+    description: "Rewrite path attribute in router object"
+    required: false
