@@ -410,6 +410,4 @@ public class Operator implements Operations {
     cfgMapData.setData(existingConfigData);
     return k8sClient.configMaps().inNamespace(environment.getNameSpace()).createOrReplace(cfgMapData);
   }
-
-
 }
