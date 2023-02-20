@@ -26,14 +26,15 @@ import org.eclipse.microprofile.config.ConfigProvider;
 public class SsrResourceProvisioner {
 
     private static final String DEPLOYMENT_TEMPLATE_LOCATION = "/openshift/ssr-deployment-template.yaml";
+    private static final String NEW_NS_TEMPLATE = "/openshift/mpp-namespace-template.yaml";
+    private static final String NS_NETWORK_POLICY_TEMPLATE = "/openshift/mpp-prepare-namespace.yaml";
     private static final String CONTAINER_NAME = "app-container";
 
     /*
      * TODO
      * Maintain the separation of concerns, By creating a wrapper class that wraps
      * these methods and accept
-     * A tracing id then handle it internally so that these class can be reuse from
-     * different classes and none
+     * A tracing id then handle it internally so that these class can be reused and none
      * of them pollutes these methods.
      * Have to add the create-ns and prepare-ns capabilities.
      * Wrapper class must not block the main thread,which is linked with API
@@ -143,9 +144,12 @@ public class SsrResourceProvisioner {
             return deNameSpace;
         if (Objects.isNull(incomingNameSpace))
             throw new RuntimeException("namespace not found!");
+        createMpPlusProject(incomingNameSpace);
         return incomingNameSpace;
     }
 
+    
+    //TODO move these methods to a seperate class and use as acommon functionality
     private void createMpPlusProject(String namespace) {
         if (nameSpaceExists(namespace))
             return;
@@ -157,7 +161,7 @@ public class SsrResourceProvisioner {
     private void createNewTenantNamespace(String namespace, Map<String, String> templateParameters) {
         var k8sNSList = client
                 .templates()
-                .load(SsrResourceProvisioner.class.getResourceAsStream("/openshift/mpp-namespace-template.yaml"))
+                .load(SsrResourceProvisioner.class.getResourceAsStream(NEW_NS_TEMPLATE))
                 .processLocally(templateParameters);
         client.resourceList(k8sNSList).createOrReplace();
         LOG.debug("new namespace {} created successfully ", namespace);
@@ -175,7 +179,7 @@ public class SsrResourceProvisioner {
         var nsSupportResourcesList = client
                 .templates()
                 .inNamespace(namespace)
-                .load(SsrResourceProvisioner.class.getResourceAsStream("/openshift/mpp-prepare-namespace.yaml"))
+                .load(SsrResourceProvisioner.class.getResourceAsStream(NS_NETWORK_POLICY_TEMPLATE))
                 .processLocally(templateParameters);
 
         Uni.createFrom().item(nsSupportResourcesList)

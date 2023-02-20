@@ -51,6 +51,7 @@ public class SsrRequestProcessor {
 
 
     //Lambda inner methods
+    //TODO get rid of these ugly RuntimeExceptions.
 
     private Optional<String> provision(SsrResourceDetails requestPayload) {
         boolean  isProvisioned =  resourceProvisioner
