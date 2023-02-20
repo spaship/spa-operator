@@ -13,9 +13,12 @@ import org.slf4j.LoggerFactory;
 import javax.enterprise.context.ApplicationScoped;
 import java.util.Optional;
 
+import io.quarkus.security.Authenticated;
+
 
 @ApplicationScoped
 @RouteBase(path = "api/deployment/v1")
+@Authenticated
 public class SsrRoute {
 
     private static final Logger LOG = LoggerFactory.getLogger(SsrRoute.class);
@@ -53,7 +56,7 @@ public class SsrRoute {
 
     @Route(path = "/", methods = Route.HttpMethod.GET)
     void rootPath(RoutingExchange ex){
-        ex.ok("everything looks good so far, welcome to the crc");
+        ex.ok("ssr config status : online");
     }
 
 }

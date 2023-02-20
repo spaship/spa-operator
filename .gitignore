@@ -40,3 +40,5 @@ nb-configuration.xml
 
 ../packages.iml
 local-build.sh
+local-build.bat
+local-build.sh
