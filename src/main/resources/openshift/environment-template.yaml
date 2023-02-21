@@ -91,6 +91,7 @@ objects:
         environment: ${ENV}
         websiteVersion: ${WEBSITE_VERSION}
   - kind: PersistentVolumeClaim
+    apiVersion: v1
     metadata:
       name: data-${WEBSITE}-${ENV}-${APP_INSTANCE_PREFIX}
       annotations:
