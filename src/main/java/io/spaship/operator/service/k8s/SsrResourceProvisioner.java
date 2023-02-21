@@ -1,7 +1,6 @@
 package io.spaship.operator.service.k8s;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.runtime.configuration.ProfileManager;
 import io.smallrye.mutiny.Uni;
@@ -34,7 +33,8 @@ public class SsrResourceProvisioner {
      * TODO
      * Maintain the separation of concerns, By creating a wrapper class that wraps
      * these methods and accept
-     * A tracing id then handle it internally so that these class can be reused and none
+     * A tracing id then handle it internally so that these class can be reused and
+     * none
      * of them pollutes these methods.
      * Have to add the create-ns and prepare-ns capabilities.
      * Wrapper class must not block the main thread,which is linked with API
@@ -49,8 +49,8 @@ public class SsrResourceProvisioner {
     private final OpenShiftClient client;
     private final String deNameSpace;
 
-    public SsrResourceProvisioner(OpenShiftClient k8sClient, @Named("deNamespace") String ns) {
-        this.client =  k8sClient;
+    public SsrResourceProvisioner(OpenShiftClient client, @Named("deNamespace") String ns) {
+        this.client = client;
         this.deNameSpace = ns;
     }
 
@@ -148,8 +148,7 @@ public class SsrResourceProvisioner {
         return incomingNameSpace;
     }
 
-    
-    //TODO move these methods to a seperate class and use as acommon functionality
+    // TODO move these methods to a seperate class and use as acommon functionality
     private void createMpPlusProject(String namespace) {
         if (nameSpaceExists(namespace))
             return;
