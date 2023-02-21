@@ -21,11 +21,11 @@ import java.util.Map;
 public class SpashipManagedResourceWatcher {
 
   private static final Logger LOG = LoggerFactory.getLogger(SpashipManagedResourceWatcher.class);
-  private final KubernetesClient kubernetesClient;
+  private final OpenShiftClient kubernetesClient;
   private final String nameSpace;
   private final Map<String, String> filter = Map.of("managedBy", "spaship");
 
-  public SpashipManagedResourceWatcher(KubernetesClient kubernetesClient, @Named("defaultNamespaceMT") String nameSpace) {
+  public SpashipManagedResourceWatcher(OpenShiftClient kubernetesClient, @Named("defaultNamespaceMT") String nameSpace) {
     this.kubernetesClient = kubernetesClient;
     this.nameSpace = nameSpace;
   }
@@ -42,7 +42,7 @@ public class SpashipManagedResourceWatcher {
   }
 
   private void routeWatcher(String nameSpace, Map<String, String> filter) {
-    ((OpenShiftClient) kubernetesClient).routes()
+    kubernetesClient.routes()
       .inNamespace(nameSpace).withLabels(filter).watch(new Watcher<Route>() {
         @Override
         public void eventReceived(Action action, Route resource) {

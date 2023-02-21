@@ -7,18 +7,18 @@
 #
 # Then, build the image with:
 #
-# docker build -f src/main/docker/Dockerfile.jvm -t quarkus/spaoperator-jvm .
+# docker build -f src/main/docker/Dockerfile.jvm -t quarkus/spa-deployment-operator-jvm .
 #
 # Then run the container using:
 #
-# docker run -i --rm -p 8080:8080 quarkus/spaoperator-jvm
+# docker run -i --rm -p 8080:8080 quarkus/spa-deployment-operator-jvm
 #
 # If you want to include the debug port into your docker image
 # you will have to expose the debug port (default 5005) like this :  EXPOSE 8080 5005
 #
 # Then run the container using :
 #
-# docker run -i --rm -p 8080:8080 quarkus/spaoperator-jvm
+# docker run -i --rm -p 8080:8080 quarkus/spa-deployment-operator-jvm
 #
 # This image uses the `run-java.sh` script to run the application.
 # This scripts computes the command line to execute your Java application, and

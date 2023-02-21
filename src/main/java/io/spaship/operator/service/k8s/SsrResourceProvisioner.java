@@ -49,8 +49,8 @@ public class SsrResourceProvisioner {
     private final OpenShiftClient client;
     private final String deNameSpace;
 
-    public SsrResourceProvisioner(KubernetesClient k8sClient, @Named("deNamespace") String ns) {
-        this.client = (OpenShiftClient) k8sClient;
+    public SsrResourceProvisioner(OpenShiftClient k8sClient, @Named("deNamespace") String ns) {
+        this.client =  k8sClient;
         this.deNameSpace = ns;
     }
 

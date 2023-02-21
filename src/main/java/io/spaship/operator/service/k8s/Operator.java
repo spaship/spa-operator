@@ -41,7 +41,7 @@ public class Operator implements Operations {
   private static final String WEBSITE = "website";
   private static final String ENVIRONMENT = "environment";
   private static final String SPASHIP = "spaship";
-  private final KubernetesClient k8sClient;
+  private final OpenShiftClient  ocClient;
   private final EventManager eventManager;
   private final String domain;
   private final String routerDomain;
@@ -49,9 +49,9 @@ public class Operator implements Operations {
   private final String appInstance;
   private final String deDebugNs;
 
-  public Operator(KubernetesClient k8sClient,
+  public Operator(OpenShiftClient  ocClient,
                   EventManager eventManager, @Named("deNamespace") String ns) {
-    this.k8sClient = k8sClient;
+    this.ocClient = ocClient;
     this.eventManager = eventManager;
     domain = ConfigProvider.getConfig().getValue("operator.domain.name", String.class);
     routerDomain = ConfigProvider.getConfig().getValue("operator.router.domain.name", String.class);
@@ -114,7 +114,7 @@ public class Operator implements Operations {
   }
 
   private boolean nameSpaceExists(String namespace) {
-    var ns = k8sClient.namespaces().withName(namespace).get();
+    var ns = ocClient.namespaces().withName(namespace).get();
     var nsExists = Objects.nonNull(ns);
     LOG.debug("nameSpaceExists status is {}", nsExists);
     return nsExists;
@@ -123,7 +123,7 @@ public class Operator implements Operations {
 
   private boolean podExists(Environment environment) {
     Map<String, String> labels = searchCriteriaLabel(environment);
-    List<Pod> matchedPods = k8sClient.pods().inNamespace(environment.getNameSpace()).withLabels(labels).list()
+    List<Pod> matchedPods = ocClient.pods().inNamespace(environment.getNameSpace()).withLabels(labels).list()
       .getItems();
     LOG.debug("{} no of matched pod found with search criteria {}", matchedPods.size(), labels);
     return !matchedPods.isEmpty();
@@ -186,18 +186,18 @@ public class Operator implements Operations {
   }
 
   private void createNewTenantNamespace(Environment environment, Map<String, String> templateParameters) {
-    var k8sNSList = ((OpenShiftClient) k8sClient)
+    var k8sNSList = ocClient
       .templates()
       .load(Operations.class.getResourceAsStream("/openshift/mpp-namespace-template.yaml"))
       .processLocally(templateParameters);
-    k8sClient.resourceList(k8sNSList).createOrReplace();
+    ocClient.resourceList(k8sNSList).createOrReplace();
     LOG.debug("new namespace {} created successfully ", environment.getNameSpace());
   }
 
   @SneakyThrows
   private void prepareNewTenantNameSpace(Environment environment, Map<String, String> templateParameters,
                                          EventStructure.EventStructureBuilder eb) {
-    var nsSupportResourcesList = ((OpenShiftClient) k8sClient)
+    var nsSupportResourcesList =  ocClient
       .templates()
       .inNamespace(environment.getNameSpace())
       .load(Operations.class.getResourceAsStream("/openshift/mpp-prepare-namespace.yaml"))
@@ -206,7 +206,7 @@ public class Operator implements Operations {
     Uni.createFrom().item(nsSupportResourcesList)
       .map(item -> {
         LOG.debug("executing mpp-prepare-namespace.yaml for namespace {}", environment.getNameSpace());
-        return k8sClient.resourceList(item).inNamespace(environment.getNameSpace()).createOrReplace();
+        return ocClient.resourceList(item).inNamespace(environment.getNameSpace()).createOrReplace();
       })
       .onFailure()
       .retry()
@@ -243,7 +243,7 @@ public class Operator implements Operations {
       .concat("-")
       .concat(environment.getName().toLowerCase());
     LOG.debug("computed service name is {}", serviceName);
-    var svc = k8sClient.services().inNamespace(environment.getNameSpace()).withName(serviceName).get();
+    var svc = ocClient.services().inNamespace(environment.getNameSpace()).withName(serviceName).get();
 
     String clusterIP = svc.getSpec().getClusterIP();
     var svcPort = svc.getSpec().getPorts().stream()
@@ -270,7 +270,7 @@ public class Operator implements Operations {
   private OperationResponse applyDeleteResourceList(Environment environment, KubernetesList resourceList) {
     LOG.debug("applying delete on resources");
     //Should we delete the pvs as well? will that be a good idea?
-    var isDeleted = k8sClient.resourceList(resourceList).inNamespace(environment.getNameSpace()).delete();
+    var isDeleted = ocClient.resourceList(resourceList).inNamespace(environment.getNameSpace()).delete();
     environment.setOperationPerformed(true);
     var or = OperationResponse.builder().environment(environment)
       .sideCarServiceUrl("NA")
@@ -283,6 +283,7 @@ public class Operator implements Operations {
 
 
   private KubernetesList buildK8sResourceList(Environment environment) {
+    LOG.info("inide buildK8sResourceList the environment value is {}",environment);
     Map<String, String> templateParameters = Map.of(
       "WEBSITE", environment.getWebsiteName().toLowerCase(),
       //"TRACE_ID", environment.getTraceID().toString().toLowerCase(),
@@ -296,11 +297,21 @@ public class Operator implements Operations {
       "ROUTER_DOMAIN", routerDomain
     );
     LOG.debug("building KubernetesList, templateParameters are as follows {}", templateParameters);
-    return ((OpenShiftClient) k8sClient)
+
+    KubernetesList kubernetesList = null;
+    try{
+      kubernetesList = ocClient
       .templates()
       .inNamespace(environment.getNameSpace())
-      .load(Operations.class.getResourceAsStream("/openshift/environment-template.yaml"))
+      .load(Operator.class.getResourceAsStream("/openshift/environment-template.yaml"))
       .processLocally(templateParameters);
+    }catch(Exception ex){
+        ex.printStackTrace();
+    }
+    if(Objects.isNull(kubernetesList))
+      throw new RuntimeException("Faild to locally process kubernetesList");
+    
+      return kubernetesList;
   }
 
 
@@ -315,7 +326,7 @@ public class Operator implements Operations {
       WEBSITE, environment.getWebsiteName(),
       ENVIRONMENT, environment.getName()
     );
-    var pods = k8sClient.pods()
+    var pods = ocClient.pods()
       .inNamespace(environment.getNameSpace()).withLabels(labels).list().getItems();
 
     if (Objects.isNull(pods)) {
@@ -346,21 +357,21 @@ public class Operator implements Operations {
     result.getItems().forEach(item -> {
       if (item instanceof Service) {
         LOG.debug("creating new Service in K8s, tracing = {}", tracing);
-        k8sClient.services().inNamespace(nameSpace).createOrReplace((Service) item);
+        ocClient.services().inNamespace(nameSpace).createOrReplace((Service) item);
         eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
           .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
           .state("service created");
       }
       if (item instanceof Deployment) {
         LOG.debug("creating new Deployment in K8s, tracing = {}", tracing);
-        k8sClient.apps().deployments().inNamespace(nameSpace).createOrReplace((Deployment) item);
+        ocClient.apps().deployments().inNamespace(nameSpace).createOrReplace((Deployment) item);
         eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
           .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
           .state("deployment created");
       }
       if (item instanceof StatefulSet) {
         LOG.debug("creating new Deployment in K8s, tracing = {}", tracing);
-        k8sClient.apps().statefulSets().inNamespace(nameSpace).createOrReplace((StatefulSet) item);
+        ocClient.apps().statefulSets().inNamespace(nameSpace).createOrReplace((StatefulSet) item);
         eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
           .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
           .state("StatefulSet created");
@@ -368,28 +379,28 @@ public class Operator implements Operations {
       }
       if (item instanceof PersistentVolumeClaim) {
         LOG.debug("creating new pvc in K8s, tracing = {}", tracing);
-        k8sClient.persistentVolumeClaims().inNamespace(nameSpace).createOrReplace((PersistentVolumeClaim) item);
+        ocClient.persistentVolumeClaims().inNamespace(nameSpace).createOrReplace((PersistentVolumeClaim) item);
         eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
           .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
           .state("pvc created");
       }
       if (item instanceof Route) {
         LOG.debug("creating new Route in K8s, tracing = {}", tracing);
-        ((OpenShiftClient) k8sClient).routes().inNamespace(nameSpace).createOrReplace((Route) item);
+        ocClient.routes().inNamespace(nameSpace).createOrReplace((Route) item);
         eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
           .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
           .state("route created");
       }
       if (item instanceof ConfigMap) {
         LOG.debug("creating new ConfigMap in K8s, tracing = {}", tracing);
-        k8sClient.configMaps().inNamespace(nameSpace).createOrReplace((ConfigMap) item);
+        ocClient.configMaps().inNamespace(nameSpace).createOrReplace((ConfigMap) item);
         eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
           .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
           .state("configmap created");
       }
       if (item instanceof Ingress) {
         LOG.debug("creating new Ingress controller in K8s, tracing = {}", tracing);
-        k8sClient.network().v1().ingresses().inNamespace(nameSpace).createOrReplace((Ingress) item);
+        ocClient.network().v1().ingresses().inNamespace(nameSpace).createOrReplace((Ingress) item);
       }
 
       eventManager.queue(eb.build());
@@ -404,10 +415,10 @@ public class Operator implements Operations {
       .concat(environment.getWebsiteName().toLowerCase())
       .concat("-")
       .concat(environment.getName().toLowerCase());
-    var cfgMapData =  k8sClient.configMaps().inNamespace(environment.getNameSpace()).withName(configMapName).get();
+    var cfgMapData =  ocClient.configMaps().inNamespace(environment.getNameSpace()).withName(configMapName).get();
     var existingConfigData =  cfgMapData.getData();
     existingConfigData.put("SIDECAR_SYNC_CONFIG",syncConfig.toString());
     cfgMapData.setData(existingConfigData);
-    return k8sClient.configMaps().inNamespace(environment.getNameSpace()).createOrReplace(cfgMapData);
+    return ocClient.configMaps().inNamespace(environment.getNameSpace()).createOrReplace(cfgMapData);
   }
 }
