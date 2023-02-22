@@ -42,3 +42,4 @@ nb-configuration.xml
 local-build.sh
 local-build.bat
 local-build.sh
+local-git-recon.bat
