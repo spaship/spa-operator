@@ -6,6 +6,7 @@ import io.quarkus.vertx.web.RoutingExchange;
 import io.smallrye.mutiny.Uni;
 import io.spaship.operator.business.SsrRequestProcessor;
 import io.spaship.operator.type.SsrResourceDetails;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,26 +31,26 @@ public class SsrRoute {
 
 
     @Route(path = "/create", methods = Route.HttpMethod.POST)
-    Uni<Optional<String>> triggerDeployment(RoutingContext rc) {
+    Uni<Optional<JsonObject>> triggerDeployment(RoutingContext rc) {
         var reqBody = rc.body().asPojo(SsrResourceDetails.class);
         return requestProcessor.processSPAProvisionRequest(reqBody);
     }
 
     @Route(path = "/delete", methods = Route.HttpMethod.DELETE)
-    Uni<Optional<String>> deleteDeployment(RoutingContext rc) {
+    Uni<Optional<JsonObject>> deleteDeployment(RoutingContext rc) {
         var reqBody = rc.body().asPojo(SsrResourceDetails.class);
         return requestProcessor.processSpaDeleteRequest(reqBody);
     }
 
     @Route(path = "/update", methods = Route.HttpMethod.PUT)
-    Uni<Optional<String>> updateDeployment(RoutingContext rc) {
+    Uni<Optional<JsonObject>> updateDeployment(RoutingContext rc) {
         var reqBody = rc.body().asPojo(SsrResourceDetails.class);
         LOG.info("the following request received in the router {}",reqBody);
         return requestProcessor.processUpdateRequest(reqBody);
     }
 
     @Route(path = "/config", methods = Route.HttpMethod.POST)
-    Uni<Optional<String>> updateConfig(RoutingContext rc) {
+    Uni<Optional<JsonObject>> updateConfig(RoutingContext rc) {
         var reqBody = rc.body().asPojo(SsrResourceDetails.class);
         return requestProcessor.processConfigUpdateRequest(reqBody);
     }

@@ -340,52 +340,52 @@ public class Operator implements Operations {
     var eb = EventStructure.builder().uuid(tracing);
 
     result.getItems().forEach(item -> {
-      if (item instanceof Service) {
+      if (item instanceof Service svc) {
         LOG.debug("creating new Service in K8s, tracing = {}", tracing);
-        ocClient.services().inNamespace(nameSpace).createOrReplace((Service) item);
+        ocClient.services().inNamespace(nameSpace).createOrReplace(svc);
         eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
             .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
             .state("service created");
       }
-      if (item instanceof Deployment) {
+      if (item instanceof Deployment dep) {
         LOG.debug("creating new Deployment in K8s, tracing = {}", tracing);
-        ocClient.apps().deployments().inNamespace(nameSpace).createOrReplace((Deployment) item);
+        ocClient.apps().deployments().inNamespace(nameSpace).createOrReplace(dep);
         eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
             .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
             .state("deployment created");
       }
-      if (item instanceof StatefulSet) {
+      if (item instanceof StatefulSet sfs) {
         LOG.debug("creating new Deployment in K8s, tracing = {}", tracing);
-        ocClient.apps().statefulSets().inNamespace(nameSpace).createOrReplace((StatefulSet) item);
+        ocClient.apps().statefulSets().inNamespace(nameSpace).createOrReplace(sfs);
         eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
             .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
             .state("StatefulSet created");
 
       }
-      if (item instanceof PersistentVolumeClaim) {
+      if (item instanceof PersistentVolumeClaim pvc) {
         LOG.debug("creating new pvc in K8s, tracing = {}", tracing);
-        ocClient.persistentVolumeClaims().inNamespace(nameSpace).createOrReplace((PersistentVolumeClaim) item);
+        ocClient.persistentVolumeClaims().inNamespace(nameSpace).createOrReplace(pvc);
         eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
             .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
             .state("pvc created");
       }
-      if (item instanceof Route) {
+      if (item instanceof Route route) {
         LOG.debug("creating new Route in K8s, tracing = {}", tracing);
-        ocClient.routes().inNamespace(nameSpace).createOrReplace((Route) item);
+        ocClient.routes().inNamespace(nameSpace).createOrReplace(route);
         eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
             .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
             .state("route created");
       }
-      if (item instanceof ConfigMap) {
+      if (item instanceof ConfigMap cm) {
         LOG.debug("creating new ConfigMap in K8s, tracing = {}", tracing);
-        ocClient.configMaps().inNamespace(nameSpace).createOrReplace((ConfigMap) item);
+        ocClient.configMaps().inNamespace(nameSpace).createOrReplace(cm);
         eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
             .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
             .state("configmap created");
       }
-      if (item instanceof Ingress) {
+      if (item instanceof Ingress ing) {
         LOG.debug("creating new Ingress controller in K8s, tracing = {}", tracing);
-        ocClient.network().v1().ingresses().inNamespace(nameSpace).createOrReplace((Ingress) item);
+        ocClient.network().v1().ingresses().inNamespace(nameSpace).createOrReplace(ing);
       }
 
       eventManager.queue(eb.build());

@@ -5,6 +5,7 @@ import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.runtime.configuration.ProfileManager;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.tuples.Tuple3;
+import io.spaship.operator.exception.SsrException;
 import lombok.SneakyThrows;
 
 import org.slf4j.Logger;
@@ -143,7 +144,7 @@ public class SsrResourceProvisioner {
         if (ProfileManager.getActiveProfile().equals("dev") && Objects.isNull(incomingNameSpace))
             return deNameSpace;
         if (Objects.isNull(incomingNameSpace))
-            throw new RuntimeException("namespace not found!");
+            throw new SsrException("namespace not found!");
         createMpPlusProject(incomingNameSpace);
         return incomingNameSpace;
     }
