@@ -33,8 +33,8 @@ objects:
         paas.redhat.com/appcode: ${SPASHIP-APPCODE}
     spec:
       ports:
-        - port: 8080
-          targetPort: 8080
+        - port: ${CPORT}
+          targetPort: ${CPORT}
           name: http
       selector:
         website: ${WEBSITE}
@@ -59,7 +59,7 @@ objects:
         kind: Service
         name: ${WEBSITE}-${APP}-${ENV}
       port:
-        targetPort: 8080
+        targetPort: ${CPORT}
       tls:
         termination: edge
         insecureEdgeTerminationPolicy: Redirect
@@ -106,18 +106,18 @@ objects:
                   cpu: ${RESOURCE-LIM-CPU}
                   memory: ${RESOURCE-LIM-MEM}
               ports:
-                - containerPort: 8080
+                - containerPort: ${CPORT}
               livenessProbe:
                 httpGet:
                   path: "${HEALTH-CHECK-PATH}"
-                  port: 8080
+                  port: ${CPORT}
                 initialDelaySeconds: 2
                 failureThreshold: 10
                 periodSeconds: 10
               readinessProbe:
                 httpGet:
                   path: "${HEALTH-CHECK-PATH}"
-                  port: 8080
+                  port: ${CPORT}
                 initialDelaySeconds: 2
                 failureThreshold: 5
                 periodSeconds: 10
@@ -181,7 +181,7 @@ parameters:
     description: "Maximum ram required for the app"
     required: false
   - name: "CPORT"
-    value: 8080
+    value: 3000
     description: "container and default port number for the application"
     required: false
   - name: "HEALTH-CHECK-PATH"
