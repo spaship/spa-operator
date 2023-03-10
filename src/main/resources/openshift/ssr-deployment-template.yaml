@@ -33,8 +33,8 @@ objects:
         paas.redhat.com/appcode: ${SPASHIP-APPCODE}
     spec:
       ports:
-        - port: "${CPORT}"
-          targetPort: "${CPORT}"
+        - port: 3000
+          targetPort: 3000
           name: http
       selector:
         website: ${WEBSITE}
@@ -59,7 +59,7 @@ objects:
         kind: Service
         name: ${WEBSITE}-${APP}-${ENV}
       port:
-        targetPort: "${CPORT}"
+        targetPort: 3000
       tls:
         termination: edge
         insecureEdgeTerminationPolicy: Redirect
@@ -106,18 +106,18 @@ objects:
                   cpu: ${RESOURCE-LIM-CPU}
                   memory: ${RESOURCE-LIM-MEM}
               ports:
-                - containerPort: "${CPORT}"
+                - containerPort: 3000
               livenessProbe:
                 httpGet:
                   path: "${HEALTH-CHECK-PATH}"
-                  port: "${CPORT}"
+                  port: 3000
                 initialDelaySeconds: 2
                 failureThreshold: 10
                 periodSeconds: 10
               readinessProbe:
                 httpGet:
                   path: "${HEALTH-CHECK-PATH}"
-                  port: "${CPORT}"
+                  port: 3000
                 initialDelaySeconds: 2
                 failureThreshold: 5
                 periodSeconds: 10
