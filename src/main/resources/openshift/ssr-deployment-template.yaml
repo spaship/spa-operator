@@ -34,7 +34,7 @@ objects:
     spec:
       ports:
         - port: 3000
-          targetPort: 3000
+          targetPort: "${{CONPORT}}"
           name: http
       selector:
         website: ${WEBSITE}
@@ -59,7 +59,7 @@ objects:
         kind: Service
         name: ${WEBSITE}-${APP}-${ENV}
       port:
-        targetPort: 3000
+        targetPort: http
       tls:
         termination: edge
         insecureEdgeTerminationPolicy: Redirect
@@ -106,18 +106,18 @@ objects:
                   cpu: ${RESOURCE-LIM-CPU}
                   memory: ${RESOURCE-LIM-MEM}
               ports:
-                - containerPort: 3000
+                - containerPort: "${{CONPORT}}"
               livenessProbe:
                 httpGet:
                   path: "${HEALTH-CHECK-PATH}"
-                  port: 3000
+                  port: "${{CONPORT}}"
                 initialDelaySeconds: 2
                 failureThreshold: 10
                 periodSeconds: 10
               readinessProbe:
                 httpGet:
                   path: "${HEALTH-CHECK-PATH}"
-                  port: 3000
+                  port: "${{CONPORT}}"
                 initialDelaySeconds: 2
                 failureThreshold: 5
                 periodSeconds: 10
@@ -180,10 +180,10 @@ parameters:
     value: "512Mi"
     description: "Maximum ram required for the app"
     required: false
-  - name: "CPORT"
-    value: 3000
+  - name: CONPORT
+    value: "3000"
     description: "container and default port number for the application"
-    required: false
+    required: true
   - name: "HEALTH-CHECK-PATH"
     value: "/"
     description: "health check path for determining pod lveness and readiness status"
