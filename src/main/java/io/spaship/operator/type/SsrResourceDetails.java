@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public record SsrResourceDetails(String nameSpace, String imageUrl, String app, String contextPath, String healthCheckPath, String website,
-                              String environment,
+                              String environment, String port,
                               Map<String, String> configMap) {
 
     private static final Logger LOG = LoggerFactory.getLogger(SsrResourceDetails.class);
@@ -29,7 +29,9 @@ public record SsrResourceDetails(String nameSpace, String imageUrl, String app, 
             params.put("WEBSITE", website);
         if(Objects.nonNull(environment))
             params.put("ENV", environment);
-        
+        if(Objects.nonNull(port))
+            params.put("CONPORT", port);
+
         var routerDomain = fetchRouterDomain();
         if(Objects.nonNull(routerDomain))
             params.put("ROUTER-DOMAIN", routerDomain);        
