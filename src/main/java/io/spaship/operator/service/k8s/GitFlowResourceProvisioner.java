@@ -6,6 +6,7 @@ import io.fabric8.openshift.api.model.BuildRequest;
 import io.fabric8.openshift.api.model.BuildRequestBuilder;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.spaship.operator.type.K8sResourceLog;
+import io.spaship.operator.util.ReUsableItems;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,9 +84,13 @@ public class GitFlowResourceProvisioner {
         return getTailingBuildLog(buildName, ns, upto);
     }
 
-    public boolean deploymentReadiness(String deploymentName, String ns) {
+    public boolean deploymentIsReady(String deploymentName, String ns) {
         LOG.debug("Invoked method deploymentReadiness with deploymentName: {}, in Namespace: {}", deploymentName, ns);
-        return openShiftClient.apps().deployments().inNamespace(ns).withName(deploymentName).isReady();
+        var deployment = openShiftClient.apps().deployments().inNamespace(ns).withName(deploymentName).get();
+        var listOfConditions = deployment.getStatus().getConditions();
+        var condition = listOfConditions.stream().filter(c-> "Available".equals(c.getType()))
+                .findFirst().orElse(null);
+        return Objects.nonNull(condition) && "True".equals(condition.getStatus());
     }
 
     // TODO simplify this method, use function composition style or break into sub methods
@@ -99,8 +104,11 @@ public class GitFlowResourceProvisioner {
                 .getMetadata()
                 .getLabels();
 
+        Map<String, String> podLabels = ReUsableItems.subset(deploymentLabels,
+                "website","environment","app","app.mpp.io/managed-by");
+
         List<Pod> pods = openShiftClient.pods().inNamespace(ns)
-                .withLabels(deploymentLabels)
+                .withLabels(podLabels)
                 .list()
                 .getItems();
         List<K8sResourceLog> podLogs = new ArrayList<>();
@@ -131,14 +139,27 @@ public class GitFlowResourceProvisioner {
         return openShiftClient.builds().inNamespace(ns).withName(buildName).getLogReader();
     }
 
-    Optional<String> checkBuildReadiness(String buildName, String ns) {
-        LOG.debug("Invoked getCompleteBuildLog");
-        var readiness = openShiftClient.builds().inNamespace(ns).withName(buildName).isReady();
-        if (!readiness)
-            return Optional.of("There could be an issue with the " +
-                    "build named " + buildName + " in namespace " + ns + ", either because it doesn't exist or isn't ready");
-        return Optional.empty();
+    public boolean hasBuildEnded(String buildName, String ns) {
+        LOG.debug("Invoked hasBuildEnded");
+        var phase = openShiftClient.builds().inNamespace(ns).withName(buildName).get().getStatus().getPhase();
+        return "Complete".equals(phase) || "Failed".equals(phase) || "Cancelled".equals(phase);
     }
+
+    public boolean isBuildSuccessful(String buildName, String ns){
+        LOG.debug("Invoked isBuildSuccessful");
+        var phase = openShiftClient.builds().inNamespace(ns).withName(buildName).get().getStatus().getPhase();
+        return "Complete".equals(phase);
+    }
+
+    public String checkBuildPhase(String buildName, String ns){
+        LOG.debug("Invoked isBuildSuccessful");
+        var build = openShiftClient.builds().inNamespace(ns).withName(buildName).get();
+        if(Objects.isNull(build))
+            return "NF";
+        return build.getStatus().getPhase();
+    }
+
+
 
 
     private void throwExceptionWhenConditionNotMatched(boolean condition, String message) {

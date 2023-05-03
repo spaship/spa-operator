@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Named;
 
+import java.io.InputStream;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +29,7 @@ public class SsrResourceProvisioner {
     private static final String DEPLOYMENT_TEMPLATE_LOCATION = "/openshift/ssr-deployment-template.yaml";
     private static final String NEW_NS_TEMPLATE = "/openshift/mpp-namespace-template.yaml";
     private static final String NS_NETWORK_POLICY_TEMPLATE = "/openshift/mpp-prepare-namespace.yaml";
+    private static final String TENANT_EGRESS_TEMPLATE = "/openshift/tenant-egress-template.yaml";
     private static final String CONTAINER_NAME = "app-container";
 
     /*
@@ -55,11 +57,13 @@ public class SsrResourceProvisioner {
         this.deNameSpace = ns;
     }
 
-    public boolean createNewEnvironment(Map<String, String> templateParam, String nameSpace) {
-
+    public boolean createNewEnvironment(InputStream is, Map<String, String> templateParam, String nameSpace) {
+        if(Objects.isNull(is)){
+            is = SsrResourceProvisioner.class.getResourceAsStream(DEPLOYMENT_TEMPLATE_LOCATION);
+        }
         var environmentResourceObject = client
                 .templates()
-                .load(SsrResourceProvisioner.class.getResourceAsStream(DEPLOYMENT_TEMPLATE_LOCATION))
+                .load(is)
                 .processLocally(templateParam);
         var outcome = client.resourceList(environmentResourceObject).inNamespace(nameSpace(nameSpace))
                 .createOrReplace();
@@ -141,8 +145,6 @@ public class SsrResourceProvisioner {
     }
 
     private String nameSpace(String incomingNameSpace) {
-        if (ProfileManager.getActiveProfile().equals("dev") && Objects.isNull(incomingNameSpace))
-            return deNameSpace;
         if (Objects.isNull(incomingNameSpace))
             throw new SsrException("namespace not found!");
         createMpPlusProject(incomingNameSpace);
@@ -197,6 +199,23 @@ public class SsrResourceProvisioner {
                     return null;
                 }).subscribeAsCompletionStage()
                 .thenAccept(reactOnOperationOutcome(namespace)).get();
+
+        updateTenantEgressForIAD2Cluster(namespace);
+    }
+
+    private void updateTenantEgressForIAD2Cluster(String namespace) {
+        var domainName = ConfigProvider.getConfig().getValue("operator.domain.name", String.class);
+        if(!domainName.contains("iad2")){
+            LOG.info("This namespace is not in iad2 cluster hence skipping the TenantEgress update process");
+            return;
+        }
+        LOG.info("Updating tenant egress configuration for namespace {}",namespace);
+        var tenantEgress = client
+                .templates()
+                .inNamespace(namespace)
+                .load(SsrResourceProvisioner.class.getResourceAsStream(TENANT_EGRESS_TEMPLATE))
+                .processLocally(Map.of("NAMESPACE", namespace));
+        client.resourceList(tenantEgress).inNamespace(namespace).createOrReplace();
     }
 
     private Consumer<List<HasMetadata>> reactOnOperationOutcome(String namespace) {
@@ -212,7 +231,7 @@ public class SsrResourceProvisioner {
     }
 
     private Map<String, String> buildTemplateParameterMap(String namespace) {
-        var ns = namespace.replace("spaship--", "");
+        var ns = namespace.replace("spaship--", "").replace("spaship-sandbox--", "");
         LOG.debug("Creating namespace with name {}", ns);
         var appCode = ConfigProvider.getConfig().getValue("mpp.app.code", String.class);
         var tenantName = ConfigProvider.getConfig().getValue("mpp.tenant.name", String.class);

@@ -2,6 +2,7 @@ package io.spaship.operator.type;
 
 
 import io.spaship.operator.util.StringUtil;
+import org.eclipse.microprofile.config.ConfigProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +33,7 @@ public record GitFlowMeta(SsrResourceDetails deploymentDetails, String gitRef, S
                 Objects.nonNull(deploymentDetails.website()) &&
                 Objects.nonNull(deploymentDetails.app()) &&
                 Objects.nonNull(deploymentDetails.environment()))
-            params.put("OUTPUT_NAME", completeImageRepoUrl());
+            params.put("OUTPUT_NAME", buildOutputLocation());
         return params;
     }
 
@@ -46,7 +47,24 @@ public record GitFlowMeta(SsrResourceDetails deploymentDetails, String gitRef, S
     }
 
     private String completeImageRepoUrl() {
-        if (Objects.nonNull(deploymentDetails) && Objects.nonNull(deploymentDetails.website()) && Objects.nonNull(deploymentDetails.app()) &&
+        if (Objects.nonNull(deploymentDetails) && Objects.nonNull(deploymentDetails.website())
+                && Objects.nonNull(deploymentDetails.app()) &&
+                Objects.nonNull(deploymentDetails.environment())) {
+            var repositoryBaseUrl = ConfigProvider.getConfig().getValue("mpp.is.repository.base.url", String.class);
+            var constructedImageUrl = repositoryBaseUrl.concat("/").concat(nameSpace()).concat("/")
+                    .concat(deploymentDetails().website())
+                    .concat("-")
+                    .concat(deploymentDetails().app())
+                    .concat(":")
+                    .concat(deploymentDetails().environment());
+            LOG.debug("constructed container image url is {}", constructedImageUrl);
+            return constructedImageUrl;
+        }
+        throw new RuntimeException("Some required details are missing");
+    }
+    private String buildOutputLocation() {
+        if (Objects.nonNull(deploymentDetails) && Objects.nonNull(deploymentDetails.website())
+                && Objects.nonNull(deploymentDetails.app()) &&
                 Objects.nonNull(deploymentDetails.environment())) {
             var constructedImageUrl = deploymentDetails().website()
                     .concat("-")
@@ -58,7 +76,6 @@ public record GitFlowMeta(SsrResourceDetails deploymentDetails, String gitRef, S
         }
         throw new RuntimeException("Some required details are missing");
     }
-
     public String imageStreamName() {
         return deploymentDetails()
                 .website().concat("-")

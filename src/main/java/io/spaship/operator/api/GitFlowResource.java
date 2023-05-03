@@ -40,6 +40,11 @@ public class GitFlowResource {
         var reqBody = rc.body().asPojo(FetchK8sInfoRequest.class);
         return grp.readinessStatOfDeployment(reqBody);
     }
+    @Route(path = "/build-status", methods = Route.HttpMethod.POST)
+    Uni<GeneralResponse<String>> buildStats(RoutingContext rc) {
+        var reqBody = rc.body().asPojo(FetchK8sInfoRequest.class);
+        return grp.checkBuildPhase(reqBody) ;
+    }
 
     @Route(path = "/build-log", methods = Route.HttpMethod.POST)
     Multi<String> fetchBuildLog(RoutingContext rc) {

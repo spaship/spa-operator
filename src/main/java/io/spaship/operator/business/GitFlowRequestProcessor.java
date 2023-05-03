@@ -17,6 +17,7 @@ import java.io.InputStream;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -27,17 +28,25 @@ public class GitFlowRequestProcessor {
 
     private static final Logger LOG = LoggerFactory.getLogger(GitFlowRequestProcessor.class);
     private static final int NO_OF_RETRY = 6;
-    private static final int RETRY_BACKOFF_DELAY = 1000;
+    private static final int RETRY_BACKOFF_DELAY = 3000;
     private final Executor executor = Infrastructure.getDefaultExecutor();
 
     private final GitFlowResourceProvisioner provisioner;
+    private final SsrRequestProcessor cdProcessor;
+    private final EventManager eventManager;
 
 
-    public GitFlowRequestProcessor(GitFlowResourceProvisioner provisioner) {
+    public GitFlowRequestProcessor(GitFlowResourceProvisioner provisioner, SsrRequestProcessor cdProcessor, EventManager eventManager) {
         this.provisioner = provisioner;
+        this.cdProcessor = cdProcessor;
+        this.eventManager = eventManager;
         LOG.debug("provisioner injected");
     }
 
+    private static GeneralResponse<String> exceptionDuringReadinessCheck(Throwable err) {
+        return new GeneralResponse<>("Failed to check deployment status due to ".concat(err.getMessage())
+                , GeneralResponse.Status.ERR);
+    }
 
 
     // TODO get rid of excess stuffs since deployment is chained within processHandler hence trigger is not needed anymore
@@ -66,12 +75,33 @@ public class GitFlowRequestProcessor {
     }
 
     public Uni<GeneralResponse<String>> readinessStatOfDeployment(FetchK8sInfoRequest request) {
-        return Uni.createFrom().item(request).emitOn(executor).map(r -> {
-            if (provisioner.deploymentReadiness(r.objectName(), r.ns()))
-                return new GeneralResponse<>("Deployment is now running and ready for traffic."
-                        , GeneralResponse.Status.OK);
-            return new GeneralResponse<>("Unable to find or verify readiness of the deployment."
-                    , GeneralResponse.Status.OK);
+        return Uni.createFrom().item(request).emitOn(executor).map(r ->
+                {
+                    if (provisioner.deploymentIsReady(r.objectName(), r.ns()))
+                        return new GeneralResponse<>("Deployment is now running and ready for traffic."
+                                , GeneralResponse.Status.OK);
+                    return new GeneralResponse<>("Deployment is in progress."
+                            , GeneralResponse.Status.OK);
+                })
+                .onFailure()
+                .retry()
+                .atMost(NO_OF_RETRY)
+                .onItem().delayIt().by(Duration.ofMillis(RETRY_BACKOFF_DELAY))
+                .onFailure()
+                .recoverWithItem(GitFlowRequestProcessor::exceptionDuringReadinessCheck);
+    }
+
+    public Uni<GeneralResponse<String>> checkBuildPhase(FetchK8sInfoRequest reqBody) {
+        return Uni.createFrom().item(reqBody).emitOn(executor).map(item->{
+            var phase = provisioner.checkBuildPhase(item.objectName(),item.ns());
+            return switch (phase) {
+                case "Pending", "New" -> new GeneralResponse<>(BuildStatus.STUCK.toString(), GeneralResponse.Status.OK);
+                case "Running" -> new GeneralResponse<>(BuildStatus.IN_PROGRESS.toString(), GeneralResponse.Status.OK);
+                case "Complete" -> new GeneralResponse<>(BuildStatus.COMPLETED.toString(), GeneralResponse.Status.OK);
+                case "Failed" -> new GeneralResponse<>(BuildStatus.FAILED.toString(), GeneralResponse.Status.OK);
+                case "NF" -> new GeneralResponse<>(BuildStatus.NOT_FOUND.toString(), GeneralResponse.Status.ERR);
+                default -> new GeneralResponse<>(BuildStatus.CHECK_OS_CONSOLE.toString(), GeneralResponse.Status.OK);
+            };
         });
     }
 
@@ -104,7 +134,6 @@ public class GitFlowRequestProcessor {
             LOG.info("cannot find the image stream, so creating a new one.");
             provisioner.provisionIs(input.toIsTemplateParameterMap(), input.nameSpace());
         }
-        LOG.info("image stream already exists Skipping the creation");
         return input;
     }
 
@@ -168,12 +197,57 @@ public class GitFlowRequestProcessor {
 
     GitFlowMeta triggerDeployment(GitFlowResponse input) {
         LOG.debug("inside method triggerDeployment");
-        try {
-            Thread.sleep(6000); // TODO deployment implementation
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        var buildName = input.buildName();
+        var project = input.fetchNameSpace();
+        waitForBuildEnd(buildName,project,input.fetchDeploymentDetails());
+        if(!provisioner.isBuildSuccessful(buildName,project)){
+            LOG.warn("Build {} failed. Please check the openshift console " +
+                    "for more details. The execution will end here, " +
+                    "and deployment will be skipped.",buildName);
+            return input.constructedGitFlowMeta();
         }
+        LOG.debug("Build is successful, continuing the deployment");
+        var outcome = cdProcessor.processSPAProvisionRequest(input.fetchDeploymentDetails());
+        outcome.subscribe().with(a ->{
+            eventManager.queue(EventStructure.builder()
+                    .websiteName(a.getString("website"))
+                    .environmentName(a.getString("environment"))
+                    .uuid(UUID.randomUUID())
+                    .state(ExecutionStates.DEPLOYMENT_STARTED.toString())
+                    .spaName(a.getString("application"))
+                    .contextPath(a.getString("accessUrl"))
+                    .build()
+            );
+            LOG.debug("DEPLOYMENT_STARTED Event queued");
+        });
         return input.constructedGitFlowMeta();
+    }
+
+    void waitForBuildEnd(String buildName, String ns, SsrResourceDetails deploymentDetails){
+        LOG.info("waiting for build: {} in project {} to complete",buildName,ns);
+        int attempt =0;
+        while(true){
+            LOG.debug("waiting for build attempt {}",attempt);
+            if(provisioner.hasBuildEnded(buildName,ns)){
+                LOG.info("exiting from the while loop, the build has been ended");
+                eventManager.queue(EventStructure.builder()
+                        .websiteName(deploymentDetails.website())
+                        .environmentName(deploymentDetails.environment())
+                        .uuid(UUID.randomUUID())
+                        .state(ExecutionStates.BUILD_ENDED.toString())
+                        .spaName(deploymentDetails.app())
+                        .contextPath("NA")
+                        .build()
+                );
+                break;
+            }
+            try {
+                Thread.sleep(10000);
+                attempt++;
+            } catch (InterruptedException e) {
+                throw new RuntimeException("failed to wait till build is complete "+e.getMessage());
+            }
+        }
     }
 
     private void provisionBuildConfig(InputStream is, GitFlowMeta input) throws IOException {
@@ -217,7 +291,15 @@ public class GitFlowRequestProcessor {
         LOG.error("An error occurred {} in stage {} GitFlowMeta {}", exception.getMessage(), state, req);
     }
 
+
+
     enum GitFlowStates {
         IS_CRETE, BUILD_CFG_CREATE, BUILD_TRIGGER, DEPLOYMENT_TRIGGER
+    }
+    enum ExecutionStates {
+        BUILD_ENDED,DEPLOYMENT_STARTED
+    }
+    enum BuildStatus{
+        STUCK,IN_PROGRESS,COMPLETED,FAILED,CHECK_OS_CONSOLE,NOT_FOUND
     }
 }
