@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: tenant-egress-template
+objects:
+  - apiVersion: tenant.paas.redhat.com/v1alpha1
+    kind: TenantEgress
+    metadata:
+      name: default
+      namespace: ${NAMESPACE}
+    spec:
+      egress:
+        - to:
+            cidrSelector: 172.0.0.0/8
+          type: Allow
+        - to:
+            cidrSelector: 10.0.0.0/9
+          type: Allow
+        - to:
+            cidrSelector: 52.218.128.0/17
+          type: Allow
+        - to:
+            cidrSelector: 52.92.128.0/17
+          type: Allow
+        - to:
+            cidrSelector: 52.216.0.0/15
+          type: Allow
+        - to:
+            dnsName: quay.io
+          type: Allow
+        - to:
+            dnsName: registry.hub.docker.com
+          type: Allow
+        - to:
+            dnsName: github.com
+          type: Allow
+        - to:
+            dnsName: raw.githubusercontent.com
+          type: Allow
+        - to:
+            dnsName: gitlab.cee.redhat.com
+          type: Allow
+        - to:
+            dnsName: gitlab.com
+          type: Allow
+        - to:
+            dnsName: registry.access.redhat.com
+          type: Allow
+        - to:
+            dnsName: registry.redhat.io
+          type: Allow
+        - to:
+            dnsName: docker.io
+          type: Allow
+        - to:
+            dnsName: registry.npmjs.org
+          type: Allow
+        - to:
+            dnsName: production.cloudflare.docker.com
+          type: Allow
+        - to:
+            dnsName: squid.corp.redhat.com
+          type: Allow
+parameters:
+  - name: NAMESPACE
+    description: The namespace where the TenantEgress resource will be created
+    required: true
