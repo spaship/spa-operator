@@ -87,6 +87,7 @@ class BuildConfigYamlModifierTest {
     }
 
 
+
     @Test
     void testDeploymentTemplateWithConfig() throws IOException {
         Map<String, String> configMap = new HashMap<>();
@@ -94,6 +95,13 @@ class BuildConfigYamlModifierTest {
         configMap.put("two", "Second Value");
         InputStream output = BuildConfigYamlModifier.addDataToConfigMap(null,configMap);
         assertNotNull(output);
+    }
+
+
+    @Test
+    void testExtractEgress(){
+        var data = BuildConfigYamlModifier.extractEgressFromTemplate();
+        System.out.println(data);
     }
 
     void assertNotNull(InputStream inputStream) {

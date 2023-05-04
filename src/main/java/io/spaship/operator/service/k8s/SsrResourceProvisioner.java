@@ -1,11 +1,17 @@
 package io.spaship.operator.service.k8s;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.KubernetesResource;
+import io.fabric8.kubernetes.api.model.KubernetesResourceList;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.runtime.configuration.ProfileManager;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.tuples.Tuple3;
 import io.spaship.operator.exception.SsrException;
+import io.spaship.operator.util.BuildConfigYamlModifier;
 import lombok.SneakyThrows;
 
 import org.slf4j.Logger;
@@ -206,19 +212,38 @@ public class SsrResourceProvisioner {
         updateTenantEgressForIAD2Cluster(namespace);
     }
 
+    // TODO refactor this method
     private void updateTenantEgressForIAD2Cluster(String namespace) {
         var domainName = ConfigProvider.getConfig().getValue("operator.domain.name", String.class);
         if(!domainName.contains("iad2")){
             LOG.info("This namespace is not in iad2 cluster hence skipping the TenantEgress update process");
             return;
         }
-        LOG.info("Updating tenant egress configuration for namespace {}",namespace);
-        var tenantEgress = client
-                .templates()
-                .inNamespace(namespace)
-                .load(SsrResourceProvisioner.class.getResourceAsStream(TENANT_EGRESS_TEMPLATE))
-                .processLocally(Map.of("NAMESPACE", namespace));
-        client.resourceList(tenantEgress).inNamespace(namespace).createOrReplace();
+        CustomResourceDefinitionContext crdContext = new CustomResourceDefinitionContext.Builder()
+                .withGroup("tenant.paas.redhat.com")
+                .withVersion("v1alpha1")
+                .withScope("Namespaced")
+                .withPlural("tenantegresses")
+                .build();
+        var resource = client.genericKubernetesResources(crdContext)
+                .inNamespace(namespace).withName("default");
+        var existingEgress = resource.get();
+
+        Objects.requireNonNull(existingEgress);
+        var exceptionList = BuildConfigYamlModifier.extractEgressFromTemplate();
+        Objects.requireNonNull(exceptionList);
+        Map<String, Object> spec = (Map<String, Object>) existingEgress.getAdditionalProperties().get("spec");
+        List<Map<String, Object>> egressRules = (List<Map<String, Object>>) spec.get("egress");
+        egressRules.addAll(exceptionList);
+        egressRules.removeIf(rule -> {
+            String type = (String) rule.get("type");
+            Map<String, Object> to = (Map<String, Object>) rule.get("to");
+            String cidrSelectorName = (String) to.get("cidrSelector");
+            return "0.0.0.0/0".equals(cidrSelectorName) && type.equalsIgnoreCase("Deny");
+        });
+        LOG.debug("final egress length is {} ",egressRules.size());
+        var patchOutput = resource.patch(existingEgress);
+        LOG.debug("Egress patching output is {} ",patchOutput);
     }
 
     private Consumer<List<HasMetadata>> reactOnOperationOutcome(String namespace) {
