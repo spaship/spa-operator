@@ -32,6 +32,9 @@ public class SsrRequestProcessor {
         this.resourceProvisioner = resourceProvisioner;
     }
 
+    public void nameSpaceInspection(String ns){
+        resourceProvisioner.nameSpace(ns);
+    }
     public Uni<JsonObject> processSPAProvisionRequest(SsrResourceDetails requestPayload) {
         return Uni.createFrom().item(() -> requestPayload).emitOn(executor)
                 .map(this::provision);

@@ -36,6 +36,7 @@ public class GitFlowRequestProcessor {
     private final EventManager eventManager;
 
 
+
     public GitFlowRequestProcessor(GitFlowResourceProvisioner provisioner, SsrRequestProcessor cdProcessor, EventManager eventManager) {
         this.provisioner = provisioner;
         this.cdProcessor = cdProcessor;
@@ -114,6 +115,7 @@ public class GitFlowRequestProcessor {
         LOG.debug("inside method processHandler");
         return Uni.createFrom().item(() -> reqBody)
                 .emitOn(executor)
+                .flatMap(this::checkProjectExistenceWithResiliency)
                 .flatMap(this::createOrReturnImageStreamWithResiliency)
                 .flatMap(this::createOrUpdateBuildConfigWithResiliency)
                 .flatMap(this::triggerBuildWithResiliency)
@@ -126,6 +128,14 @@ public class GitFlowRequestProcessor {
         deployAppAsync(response); //how to handle this side effect ??
         return response;
     }
+
+
+    GitFlowMeta checkProjectExistence(GitFlowMeta input) {
+        LOG.debug("inside method checkProjectExistence");
+        cdProcessor.nameSpaceInspection(input.nameSpace());
+        return input;
+    }
+
 
     GitFlowMeta createOrReturnImageStream(GitFlowMeta input) {
         LOG.debug("inside method createOrReturnImageStream");
@@ -261,6 +271,10 @@ public class GitFlowRequestProcessor {
     }
 
 
+    private Uni<GitFlowMeta> checkProjectExistenceWithResiliency(GitFlowMeta req) {
+        return applyResiliency(() -> checkProjectExistence(req), GitFlowStates.PROJECT_CHECK, req);
+    }
+
     private Uni<GitFlowMeta> createOrReturnImageStreamWithResiliency(GitFlowMeta req) {
         return applyResiliency(() -> createOrReturnImageStream(req), GitFlowStates.IS_CRETE, req);
     }
@@ -294,7 +308,7 @@ public class GitFlowRequestProcessor {
 
 
     enum GitFlowStates {
-        IS_CRETE, BUILD_CFG_CREATE, BUILD_TRIGGER, DEPLOYMENT_TRIGGER
+        PROJECT_CHECK,IS_CRETE, BUILD_CFG_CREATE, BUILD_TRIGGER, DEPLOYMENT_TRIGGER
     }
     enum ExecutionStates {
         BUILD_ENDED,DEPLOYMENT_STARTED

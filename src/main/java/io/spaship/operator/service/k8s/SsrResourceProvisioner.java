@@ -144,7 +144,7 @@ public class SsrResourceProvisioner {
         return Objects.nonNull(status);
     }
 
-    private String nameSpace(String incomingNameSpace) {
+    public String nameSpace(String incomingNameSpace) {
         if (Objects.isNull(incomingNameSpace))
             throw new SsrException("namespace not found!");
         createMpPlusProject(incomingNameSpace);
@@ -153,9 +153,12 @@ public class SsrResourceProvisioner {
 
     // TODO move these methods to a seperate class and use as acommon functionality
     private void createMpPlusProject(String namespace) {
-        if (nameSpaceExists(namespace))
+        if (nameSpaceExists(namespace)){
+            LOG.debug("namespace {} already exists",namespace);
             return;
+        }
         Map<String, String> templateParameters = buildTemplateParameterMap(namespace);
+        LOG.debug("creating Project with the following information {}",templateParameters);
         createNewTenantNamespace(namespace, templateParameters);
         prepareNewTenantNameSpace(namespace, templateParameters);
     }

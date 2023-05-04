@@ -46,7 +46,7 @@ public class GitFlowResource {
         return grp.checkBuildPhase(reqBody) ;
     }
 
-    @Route(path = "/build-log", methods = Route.HttpMethod.POST)
+    @Route(path = "/build-log", methods = Route.HttpMethod.POST) //TODO This blocks vertex loop
     Multi<String> fetchBuildLog(RoutingContext rc) {
         var k8sInfoRequest = rc.body().asPojo(FetchK8sInfoRequest.class);
         return grp.fetchBuildLog(k8sInfoRequest);
