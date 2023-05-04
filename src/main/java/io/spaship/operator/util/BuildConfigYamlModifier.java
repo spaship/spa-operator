@@ -24,6 +24,7 @@ public class BuildConfigYamlModifier {
 
     private static final String BUILD_TEMPLATE_PATH = "/openshift/build-template.yaml";
     private static final String DEPLOYMENT_TEMPLATE_PATH = "/openshift/ssr-deployment-template.yaml";
+    private static final String EGRESS_TEMPLATE_PATH = "/openshift/tenant-egress-template.yaml";
 
 
     public static InputStream modifyTemplateForMonRepo(InputStream ocTemplate) throws IOException {
@@ -78,6 +79,22 @@ public class BuildConfigYamlModifier {
         result.yaml().dump(parSedTemplate, new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
         result.ocTemplate().close();
         return new ByteArrayInputStream(outputStream.toByteArray());
+    }
+
+
+    public static List<Map<String, Object>> extractEgressFromTemplate(){
+        Result result = preProcess(null,EGRESS_TEMPLATE_PATH);
+        Map<String, Object> data = result.yaml().load(result.ocTemplate());
+        List<Map<String, Object>> objects = (List<Map<String, Object>>) data.get("objects");
+        List<Map<String, Object>> parsedEgressRules = null;
+        for (Map<String, Object> object : objects) {
+            if ("TenantEgress".equals(object.get("kind"))) {
+                Map<String, Object> spec = (Map<String, Object>) object.get("spec");
+                parsedEgressRules = (List<Map<String, Object>>) spec.get("egress");
+                break;
+            }
+        }
+        return parsedEgressRules;
     }
 
     public static InputStream monoRepoWithBuildArg(InputStream ocTemplate, List<Map<String, String>> buildArgs)

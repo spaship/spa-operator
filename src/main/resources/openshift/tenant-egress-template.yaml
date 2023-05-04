@@ -11,21 +11,6 @@ objects:
     spec:
       egress:
         - to:
-            cidrSelector: 172.0.0.0/8
-          type: Allow
-        - to:
-            cidrSelector: 10.0.0.0/9
-          type: Allow
-        - to:
-            cidrSelector: 52.218.128.0/17
-          type: Allow
-        - to:
-            cidrSelector: 52.92.128.0/17
-          type: Allow
-        - to:
-            cidrSelector: 52.216.0.0/15
-          type: Allow
-        - to:
             dnsName: quay.io
           type: Allow
         - to:
