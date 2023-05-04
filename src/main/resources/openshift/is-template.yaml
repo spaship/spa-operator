@@ -1,0 +1,25 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: image-stream-template
+parameters:
+  - name: NAME
+    description: The name of the image-stream
+    required: true
+  - name: APP_CODE
+    description: application cmdb code
+    value: SPAS-001
+    required: true
+  - name: PART_OF
+    description: name of the web property is it a part of
+    value: spaship
+    required: true
+objects:
+  - apiVersion: image.openshift.io/v1
+    kind: ImageStream
+    metadata:
+      labels:
+        app: ${NAME}
+        paas.redhat.com/appcode: ${APP_CODE}
+        app.kubernetes.io/part-of: ${PART_OF}
+      name: ${NAME}

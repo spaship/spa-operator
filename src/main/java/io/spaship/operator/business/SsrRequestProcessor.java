@@ -6,12 +6,14 @@ import io.smallrye.mutiny.tuples.Tuple3;
 import io.spaship.operator.exception.SsrException;
 import io.spaship.operator.service.k8s.SsrResourceProvisioner;
 import io.spaship.operator.type.SsrResourceDetails;
+import io.spaship.operator.util.BuildConfigYamlModifier;
 import io.vertx.core.json.JsonObject;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.enterprise.context.ApplicationScoped;
+import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.Executor;
 
@@ -30,7 +32,10 @@ public class SsrRequestProcessor {
         this.resourceProvisioner = resourceProvisioner;
     }
 
-    public Uni<Optional<JsonObject>> processSPAProvisionRequest(SsrResourceDetails requestPayload) {
+    public void nameSpaceInspection(String ns){
+        resourceProvisioner.nameSpace(ns);
+    }
+    public Uni<JsonObject> processSPAProvisionRequest(SsrResourceDetails requestPayload) {
         return Uni.createFrom().item(() -> requestPayload).emitOn(executor)
                 .map(this::provision);
     }
@@ -55,21 +60,31 @@ public class SsrRequestProcessor {
 
     //Lambda inner methods
 
-    private Optional<JsonObject> provision(SsrResourceDetails requestPayload) {
+    private JsonObject provision(SsrResourceDetails requestPayload) { //TODO change the return type get rid of Optional and Use a defined type instead of JsonObject; get rid of imperative style coding
         var parameters = requestPayload.toTemplateParameterMap();
-        boolean  isProvisioned =  resourceProvisioner
-            .createNewEnvironment(parameters,requestPayload.nameSpace());
+        boolean  isProvisioned;
+        boolean hasConfigMap = Objects.nonNull(requestPayload.configMap()) && (!requestPayload.configMap().isEmpty());
+        if(hasConfigMap){
+            LOG.info("This deployment has a configmap");
+            InputStream is = BuildConfigYamlModifier.addDataToConfigMap(null,requestPayload.configMap());
+            isProvisioned = resourceProvisioner.createNewEnvironment(is,parameters,requestPayload.nameSpace());
+        }else{
+            isProvisioned = resourceProvisioner.createNewEnvironment(null,parameters,requestPayload.nameSpace());
+        }
         if(isProvisioned){
             var constructedUrl = constructAccessUrl(parameters);
             LOG.info("constructed access url is {}",constructedUrl);
-            var response = new JsonObject().put(STATUS, "provisioned").put("accessUrl",constructedUrl);
-            return Optional.of(response);
+            return new JsonObject()
+                    .put("website",requestPayload.website())
+                    .put("application",requestPayload.app())
+                    .put("environment",requestPayload.environment())
+                    .put(STATUS, "In-Progress")
+                    .put("accessUrl",constructedUrl);
         }
-            
         throw new SsrException("failed to provision resouce: ".concat(requestPayload.toString()));
     }
 
-    private String constructAccessUrl(Map<String, String> parameters) {
+    String constructAccessUrl(Map<String, String> parameters) {
         var website = parameters.get("WEBSITE");
         var env = parameters.get("ENV");
         var routeDomain = parameters.get("ROUTER-DOMAIN");

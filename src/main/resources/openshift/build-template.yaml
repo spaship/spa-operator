@@ -1,0 +1,40 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: myapp-build-mono-template
+parameters:
+  - name: NAME
+    description: The name of the build config
+    required: true
+  - name: GIT_REF
+    description: The git reference to build from
+    required: true
+  - name: GIT_URI
+    description: The URI of the git repository
+    required: true
+  - name: CONTEXT_DIR
+    description: The context directory for the build
+    value: "/"
+    required: true
+  - name: OUTPUT_NAME
+    description: The name of the ImageStreamTag to output
+    required: true
+objects:
+  - apiVersion: build.openshift.io/v1
+    kind: BuildConfig
+    metadata:
+      name: ${NAME}
+    spec:
+      source:
+        type: Git
+        git:
+          ref: ${GIT_REF}
+          uri: ${GIT_URI}
+      output:
+        to:
+          kind: ImageStreamTag
+          name: ${OUTPUT_NAME}  #<property>-<app>:<env>
+      strategy:
+        type: Docker
+        dockerStrategy:
+          dockerfilePath: Dockerfile

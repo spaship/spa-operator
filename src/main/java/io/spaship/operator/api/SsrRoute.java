@@ -31,7 +31,7 @@ public class SsrRoute {
 
 
     @Route(path = "/create", methods = Route.HttpMethod.POST)
-    Uni<Optional<JsonObject>> triggerDeployment(RoutingContext rc) {
+    Uni<JsonObject> triggerDeployment(RoutingContext rc) {
         var reqBody = rc.body().asPojo(SsrResourceDetails.class);
         return requestProcessor.processSPAProvisionRequest(reqBody);
     }

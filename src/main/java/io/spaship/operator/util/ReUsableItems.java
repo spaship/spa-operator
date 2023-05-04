@@ -7,6 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -57,4 +59,15 @@ public class ReUsableItems {
     return !SharedRepository.isQueued(environmentId)
       || !mapValue.getValue0().equals(traceId);
   }
+
+  public static <K, V> Map<K, V> subset(Map<K, V> map, K... keys) {
+    Map<K, V> subset = new HashMap<>();
+    for (K key : keys) {
+      if (map.containsKey(key)) {
+        subset.put(key, map.get(key));
+      }
+    }
+    return subset;
+  }
+
 }
