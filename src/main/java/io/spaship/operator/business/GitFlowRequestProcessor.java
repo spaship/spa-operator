@@ -22,6 +22,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class GitFlowRequestProcessor {
@@ -56,23 +57,23 @@ public class GitFlowRequestProcessor {
         return process.apply(meta);
     }
 
-    public Multi<String> fetchBuildLog(FetchK8sInfoRequest request) { // TODO check if it can be wrapped inside K8sResourceLog Object
-        var reader = provisioner.getBuildLog(request.objectName(), request.ns(), request.upto()); //TODO add resiliency in ase it gets triggred during the build of an Object it will throw error
-        return Multi.createFrom().emitter(emitter -> {
-            try (BufferedReader bufferedReader = new BufferedReader(reader)) {
-                String line;
-                while ((line = bufferedReader.readLine()) != null) {
-                    if (emitter.isCancelled()) {
-                        break;
-                    }
-                    emitter.emit(line);
-                    emitter.emit("\n");
-                }
-                emitter.complete();
-            } catch (IOException e) {
-                emitter.fail(e);
-            }
-        });
+
+    public Multi<String> fetchBuildLog(FetchK8sInfoRequest request) {
+        return Uni.createFrom().item(() -> readBuildLog(request))
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+                .onItem().transformToMulti(lines -> Multi.createFrom().iterable(lines))
+                .flatMap(line -> Multi.createFrom().items(line, "\n"));
+    }
+
+    private List<String> readBuildLog(FetchK8sInfoRequest request) {
+        try (BufferedReader bufferedReader = new BufferedReader(
+                provisioner.getBuildLog(request.objectName(), request.ns(), request.upto()))) {
+            List<String> lines = bufferedReader.lines().collect(Collectors.toList());
+            LOG.debug("to check in which thread is this running on");
+            return lines;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public Uni<GeneralResponse<String>> readinessStatOfDeployment(FetchK8sInfoRequest request) {
