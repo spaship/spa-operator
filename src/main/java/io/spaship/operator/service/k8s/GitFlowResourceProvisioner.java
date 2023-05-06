@@ -14,6 +14,7 @@ import javax.enterprise.context.ApplicationScoped;
 import java.io.InputStream;
 import java.io.Reader;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 //todo extract all Logs related functions to another class, separate the concerns
@@ -93,10 +94,22 @@ public class GitFlowResourceProvisioner {
         return Objects.nonNull(condition) && "True".equals(condition.getStatus());
     }
 
+    public Reader getDeploymentLog(String deploymentName, String ns, int upto){
+        LOG.debug("Inside getTailingBuildLog");
+        return openShiftClient.apps().deployments().inNamespace(ns).withName(deploymentName)
+                .tailingLines(upto).withPrettyOutput().getLogReader();
+    }
+
+    public Reader getPodLog(String podName, String ns, int upto){
+        LOG.debug("Inside getTailingBuildLog");
+        return openShiftClient.pods().inNamespace(ns).withName(podName)
+                .tailingLines(upto).withPrettyOutput().getLogReader();
+    }
+
     // TODO simplify this method, use function composition style or break into sub methods
-    public List<K8sResourceLog> getTailingDeploymentLog(String deploymentName, String ns, int upto) {
-        LOG.debug("Invoked method getTailingDeploymentLog with deploymentName: {}, in Namespace: {}, upto: {} "
-                , deploymentName, ns, upto);
+    public List<String> getPodNames(String deploymentName, String ns) {
+        LOG.debug("Invoked method getPodNames with deploymentName: {}, in Namespace: {}"
+                , deploymentName, ns);
         var deployment = openShiftClient.apps().deployments().inNamespace(ns).withName(deploymentName).get();
         Objects.requireNonNull(deployment,
                 "Deployment resource named " + deploymentName + " in namespace " + ns + " not found ");
@@ -111,14 +124,9 @@ public class GitFlowResourceProvisioner {
                 .withLabels(podLabels)
                 .list()
                 .getItems();
-        List<K8sResourceLog> podLogs = new ArrayList<>();
-        for (Pod pod : pods) {
-            var podName = pod.getMetadata().getName();
-            var logs = openShiftClient.pods().inNamespace(ns)
-                    .withName(podName).tailingLines(upto).withPrettyOutput().getLog(true);
-            podLogs.add(new K8sResourceLog(podName, K8sResourceLog.Source.POD, logs));
-        }
-        return podLogs;
+        return pods.stream()
+                .map(pod -> pod.getMetadata().getName())
+                .toList();
     }
 
 

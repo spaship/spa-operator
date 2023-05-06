@@ -4,6 +4,7 @@ package io.spaship.operator.business;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
+import io.smallrye.mutiny.tuples.Tuple2;
 import io.spaship.operator.service.k8s.GitFlowResourceProvisioner;
 import io.spaship.operator.type.*;
 import io.spaship.operator.util.BuildConfigYamlModifier;
@@ -14,14 +15,17 @@ import javax.enterprise.context.ApplicationScoped;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Reader;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
+
 
 @ApplicationScoped
 public class GitFlowRequestProcessor {
@@ -56,33 +60,59 @@ public class GitFlowRequestProcessor {
         return process.apply(meta);
     }
 
-    public Multi<String> fetchBuildLog(FetchK8sInfoRequest request) { // TODO check if it can be wrapped inside K8sResourceLog Object
-        var reader = provisioner.getBuildLog(request.objectName(), request.ns(), request.upto()); //TODO add resiliency in ase it gets triggred during the build of an Object it will throw error
-        return Multi.createFrom().emitter(emitter -> {
-            try (BufferedReader bufferedReader = new BufferedReader(reader)) {
-                String line;
-                while ((line = bufferedReader.readLine()) != null) {
-                    if (emitter.isCancelled()) {
-                        break;
-                    }
-                    emitter.emit(line);
-                    emitter.emit("\n");
-                }
-                emitter.complete();
-            } catch (IOException e) {
-                emitter.fail(e);
-            }
-        });
+
+    public Multi<String> fetchBuildLog(FetchK8sInfoRequest request) {
+        return Uni.createFrom().item(() -> readLog(provisioner.getBuildLog(request.objectName(), request.ns(),
+                        request.upto())))
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+                .onItem().transformToMulti(lines -> Multi.createFrom().iterable(lines))
+                .flatMap(line -> Multi.createFrom().items(line, "\n"));
     }
+
+    public Multi<String> fetchDeploymentLog(FetchK8sInfoRequest request) {
+        return Uni.createFrom().item(() -> readLog(provisioner.getDeploymentLog(request.objectName(), request.ns(),
+                        request.upto())))
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+                .onItem().transformToMulti(lines -> Multi.createFrom().iterable(lines))
+                .flatMap(line -> Multi.createFrom().items(line, "\n"));
+    }
+
+    public Multi<String> fetchPodLog(FetchK8sInfoRequest request) {
+        return Uni.createFrom().item(() -> readLog(provisioner.getPodLog(request.objectName(), request.ns(),
+                        request.upto())))
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+                .onItem().transformToMulti(lines -> Multi.createFrom().iterable(lines))
+                .flatMap(line -> Multi.createFrom().items(line, "\n"));
+    }
+
+    public Uni<GeneralResponse<List<String>>> listPods(Optional<String> deploymentName, Optional<String> ns) {
+        var deployment = deploymentName.orElseThrow();
+        var nameSpace = ns.orElseThrow();
+        return Uni.createFrom().item( ()-> new GeneralResponse<>(
+                provisioner.getPodNames(deployment,nameSpace),GeneralResponse.Status.ACCEPTED)
+                )
+                .runSubscriptionOn(executor);
+    }
+
+    private List<String> readLog(Reader reader) {
+        try (BufferedReader bufferedReader = new BufferedReader(reader)) {
+            List<String> lines = bufferedReader.lines().toList();
+            LOG.debug("to check in which thread is this running on");
+            return lines;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     public Uni<GeneralResponse<String>> readinessStatOfDeployment(FetchK8sInfoRequest request) {
         return Uni.createFrom().item(request).emitOn(executor).map(r ->
                 {
                     if (provisioner.deploymentIsReady(r.objectName(), r.ns()))
                         return new GeneralResponse<>("Deployment is now running and ready for traffic."
-                                , GeneralResponse.Status.OK);
+                                , GeneralResponse.Status.READY);
                     return new GeneralResponse<>("Deployment is in progress."
-                            , GeneralResponse.Status.OK);
+                            , GeneralResponse.Status.IN_PROGRESS);
                 })
                 .onFailure()
                 .retry()
@@ -104,11 +134,6 @@ public class GitFlowRequestProcessor {
                 default -> new GeneralResponse<>(BuildStatus.CHECK_OS_CONSOLE.toString(), GeneralResponse.Status.OK);
             };
         });
-    }
-
-    public Uni<List<K8sResourceLog>> fetchDeploymentLog(FetchK8sInfoRequest request) { //TODO format the log just as fetchBuildLog
-        return Uni.createFrom().item(request).emitOn(executor)
-                .map(r -> provisioner.getTailingDeploymentLog(r.objectName(), r.ns(), r.upto())); ////TODO add resiliency in case it gets triggered during the build of an Object or during upscaling of build it will throw error
     }
 
     Uni<GitFlowResponse> processHandler(GitFlowMeta reqBody) {
@@ -165,17 +190,15 @@ public class GitFlowRequestProcessor {
     }
 
     private static InputStream generateBuildTemplate(GitFlowMeta input, GitFlowMeta.BuildType type) throws IOException {
-        switch (type) {
-            case MONO_WITH_BUILD_ARG, WITH_BUILD_ARG:
-                return BuildConfigYamlModifier.monoRepoWithBuildArg(null, input.buildArgs());
-            case MONO:
-                return BuildConfigYamlModifier.modifyTemplateForMonRepo(null);
-            case REGULAR:
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported build type: " + type);
-        }
-        return null; // is this bad? todo use InputStream is = null on top and then return is instead of null
+        return switch (type){
+            case MONO_WITH_BUILD_ARG -> BuildConfigYamlModifier.monoRepoWithBuildArg(null,
+                    input.buildArgs());
+            case WITH_BUILD_ARG -> BuildConfigYamlModifier.modifyTemplateForDockerBuildArg(null,
+                    input.buildArgs());
+            case MONO -> BuildConfigYamlModifier.modifyTemplateForMonRepo(null);
+            case REGULAR -> null;
+            default -> throw new IllegalArgumentException("Unsupported build type: " + type);
+        };
     }
     GitFlowMeta triggerBuild(GitFlowMeta input) {
         LOG.debug("inside method triggerBuild");
@@ -304,6 +327,7 @@ public class GitFlowRequestProcessor {
         //TODO pass this to SSE event
         LOG.error("An error occurred {} in stage {} GitFlowMeta {}", exception.getMessage(), state, req);
     }
+
 
 
 
