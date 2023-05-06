@@ -53,9 +53,20 @@ public class GitFlowResource {
     }
 
     @Route(path = "/deployment-log", methods = Route.HttpMethod.POST)
-    Uni<List<K8sResourceLog>> fetchDeploymentLog(RoutingContext rc) {
+    Multi<String> fetchDeploymentLog(RoutingContext rc) {
         var reqBody = rc.body().asPojo(FetchK8sInfoRequest.class);
         return grp.fetchDeploymentLog(reqBody);
     }
+    @Route(path = "/pod-log", methods = Route.HttpMethod.POST)
+    Multi<String> fetchPodLog(RoutingContext rc) {
+        var reqBody = rc.body().asPojo(FetchK8sInfoRequest.class);
+        return grp.fetchPodLog(reqBody);
+    }
 
+    @Route(path = "/pods-by-deployment", methods = Route.HttpMethod.GET)
+    Uni<GeneralResponse<List<String>>> getPodsByDeployment(RoutingExchange re) {
+        var deploymentName = re.getParam("deploymentName");
+        var ns = re.getParam("ns");
+        return grp.listPods(deploymentName,ns);
+    }
 }
