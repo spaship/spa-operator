@@ -30,6 +30,7 @@ objects:
         git:
           ref: ${GIT_REF}
           uri: ${GIT_URI}
+      runPolicy: SerialLatestOnly #enabled for iterative development
       output:
         to:
           kind: ImageStreamTag

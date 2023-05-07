@@ -3,8 +3,8 @@ package io.spaship.operator.business;
 
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
-import io.smallrye.mutiny.infrastructure.Infrastructure;
-import io.smallrye.mutiny.tuples.Tuple2;
+
+import io.spaship.operator.config.SPAShipThreadPool;
 import io.spaship.operator.service.k8s.GitFlowResourceProvisioner;
 import io.spaship.operator.type.*;
 import io.spaship.operator.util.BuildConfigYamlModifier;
@@ -17,11 +17,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.time.Duration;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.Executor;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -33,11 +30,12 @@ public class GitFlowRequestProcessor {
     private static final Logger LOG = LoggerFactory.getLogger(GitFlowRequestProcessor.class);
     private static final int NO_OF_RETRY = 6;
     private static final int RETRY_BACKOFF_DELAY = 3000;
-    private final Executor executor = Infrastructure.getDefaultExecutor();
 
     private final GitFlowResourceProvisioner provisioner;
     private final SsrRequestProcessor cdProcessor;
     private final EventManager eventManager;
+
+    ExecutorService gitFlowExecutorSvc = SPAShipThreadPool.cachedThreadPool();
 
 
 
@@ -60,27 +58,20 @@ public class GitFlowRequestProcessor {
         return process.apply(meta);
     }
 
-
-    public Multi<String> fetchBuildLog(FetchK8sInfoRequest request) {
-        return Uni.createFrom().item(() -> readLog(provisioner.getBuildLog(request.objectName(), request.ns(),
-                        request.upto())))
-                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
-                .onItem().transformToMulti(lines -> Multi.createFrom().iterable(lines))
-                .flatMap(line -> Multi.createFrom().items(line, "\n"));
+    Map<LogType,Function<FetchK8sInfoRequest,List<String>>>  logFunctionRepository(){
+        Map<LogType,Function<FetchK8sInfoRequest,List<String>>> readLogFunctionList= new EnumMap<>(LogType.class);
+        readLogFunctionList.put(LogType.BUILD,
+                input -> readLog(provisioner.getBuildLog(input.objectName(), input.ns(), input.upto())));
+        readLogFunctionList.put(LogType.DEPLOYMENT,
+                input -> readLog(provisioner.getDeploymentLog(input.objectName(), input.ns(), input.upto())));
+        readLogFunctionList.put(LogType.POD,
+                input -> readLog(provisioner.getPodLog(input.objectName(), input.ns(), input.upto())));
+        return readLogFunctionList;
     }
 
-    public Multi<String> fetchDeploymentLog(FetchK8sInfoRequest request) {
-        return Uni.createFrom().item(() -> readLog(provisioner.getDeploymentLog(request.objectName(), request.ns(),
-                        request.upto())))
-                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
-                .onItem().transformToMulti(lines -> Multi.createFrom().iterable(lines))
-                .flatMap(line -> Multi.createFrom().items(line, "\n"));
-    }
-
-    public Multi<String> fetchPodLog(FetchK8sInfoRequest request) {
-        return Uni.createFrom().item(() -> readLog(provisioner.getPodLog(request.objectName(), request.ns(),
-                        request.upto())))
-                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+    public Multi<String> fetchLogByType(FetchK8sInfoRequest request,LogType logType){
+        return Uni.createFrom().item(() -> logFunctionRepository().get(logType).apply(request))
+                .runSubscriptionOn(gitFlowExecutorSvc)
                 .onItem().transformToMulti(lines -> Multi.createFrom().iterable(lines))
                 .flatMap(line -> Multi.createFrom().items(line, "\n"));
     }
@@ -91,7 +82,7 @@ public class GitFlowRequestProcessor {
         return Uni.createFrom().item( ()-> new GeneralResponse<>(
                 provisioner.getPodNames(deployment,nameSpace),GeneralResponse.Status.ACCEPTED)
                 )
-                .runSubscriptionOn(executor);
+                .runSubscriptionOn(gitFlowExecutorSvc);
     }
 
     private List<String> readLog(Reader reader) {
@@ -106,7 +97,7 @@ public class GitFlowRequestProcessor {
 
 
     public Uni<GeneralResponse<String>> readinessStatOfDeployment(FetchK8sInfoRequest request) {
-        return Uni.createFrom().item(request).emitOn(executor).map(r ->
+        return Uni.createFrom().item(request).emitOn(gitFlowExecutorSvc).map(r ->
                 {
                     if (provisioner.deploymentIsReady(r.objectName(), r.ns()))
                         return new GeneralResponse<>("Deployment is now running and ready for traffic."
@@ -123,7 +114,7 @@ public class GitFlowRequestProcessor {
     }
 
     public Uni<GeneralResponse<String>> checkBuildPhase(FetchK8sInfoRequest reqBody) {
-        return Uni.createFrom().item(reqBody).emitOn(executor).map(item->{
+        return Uni.createFrom().item(reqBody).emitOn(gitFlowExecutorSvc).map(item->{
             var phase = provisioner.checkBuildPhase(item.objectName(),item.ns());
             return switch (phase) {
                 case "Pending", "New" -> new GeneralResponse<>(BuildStatus.STUCK.toString(), GeneralResponse.Status.OK);
@@ -139,7 +130,7 @@ public class GitFlowRequestProcessor {
     Uni<GitFlowResponse> processHandler(GitFlowMeta reqBody) {
         LOG.debug("inside method processHandler");
         return Uni.createFrom().item(() -> reqBody)
-                .emitOn(executor)
+                .emitOn(gitFlowExecutorSvc)
                 .flatMap(this::checkProjectExistenceWithResiliency)
                 .flatMap(this::createOrReturnImageStreamWithResiliency)
                 .flatMap(this::createOrUpdateBuildConfigWithResiliency)
@@ -215,7 +206,7 @@ public class GitFlowRequestProcessor {
         AtomicReference<GitFlowMeta> deploymentItem = new AtomicReference<>();
         preDeployment
                 .flatMap(this::triggerDeploymentWithResiliency)
-                .runSubscriptionOn(executor)
+                .runSubscriptionOn(gitFlowExecutorSvc)
                 .subscribe().with(
                         item -> {
                             LOG.debug("Deployment completed: {}", item);
@@ -237,6 +228,16 @@ public class GitFlowRequestProcessor {
             LOG.warn("Build {} failed. Please check the openshift console " +
                     "for more details. The execution will end here, " +
                     "and deployment will be skipped.",buildName);
+            LOG.debug("scheduling DEPLOYMENT_CANCELLED event");
+            eventManager.queue(EventStructure.builder()
+                    .websiteName(input.fetchDeploymentDetails().website())
+                    .environmentName(input.fetchDeploymentDetails().environment())
+                    .uuid(UUID.randomUUID())
+                    .state(ExecutionStates.DEPLOYMENT_CANCELLED.toString())
+                    .spaName(input.fetchDeploymentDetails().app())
+                    .contextPath(input.fetchDeploymentDetails().contextPath())
+                    .build()
+            );
             return input.constructedGitFlowMeta();
         }
         LOG.debug("Build is successful, continuing the deployment");
@@ -335,9 +336,12 @@ public class GitFlowRequestProcessor {
         PROJECT_CHECK,IS_CRETE, BUILD_CFG_CREATE, BUILD_TRIGGER, DEPLOYMENT_TRIGGER
     }
     enum ExecutionStates {
-        BUILD_ENDED,DEPLOYMENT_STARTED
+        BUILD_ENDED,DEPLOYMENT_STARTED,DEPLOYMENT_CANCELLED
     }
     enum BuildStatus{
         STUCK,IN_PROGRESS,COMPLETED,FAILED,CHECK_OS_CONSOLE,NOT_FOUND
+    }
+    public enum LogType{
+        BUILD,DEPLOYMENT,POD
     }
 }
