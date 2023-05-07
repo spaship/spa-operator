@@ -3,7 +3,8 @@ package io.spaship.operator.business;
 
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
-import io.smallrye.mutiny.infrastructure.Infrastructure;
+
+import io.spaship.operator.config.SPAShipThreadPool;
 import io.spaship.operator.service.k8s.GitFlowResourceProvisioner;
 import io.spaship.operator.type.*;
 import io.spaship.operator.util.BuildConfigYamlModifier;
@@ -17,7 +18,7 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -29,11 +30,12 @@ public class GitFlowRequestProcessor {
     private static final Logger LOG = LoggerFactory.getLogger(GitFlowRequestProcessor.class);
     private static final int NO_OF_RETRY = 6;
     private static final int RETRY_BACKOFF_DELAY = 3000;
-    private final Executor executor = Infrastructure.getDefaultExecutor();
 
     private final GitFlowResourceProvisioner provisioner;
     private final SsrRequestProcessor cdProcessor;
     private final EventManager eventManager;
+
+    ExecutorService gitFlowExecutorSvc = SPAShipThreadPool.cachedThreadPool();
 
 
 
@@ -69,7 +71,7 @@ public class GitFlowRequestProcessor {
 
     public Multi<String> fetchLogByType(FetchK8sInfoRequest request,LogType logType){
         return Uni.createFrom().item(() -> logFunctionRepository().get(logType).apply(request))
-                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+                .runSubscriptionOn(gitFlowExecutorSvc)
                 .onItem().transformToMulti(lines -> Multi.createFrom().iterable(lines))
                 .flatMap(line -> Multi.createFrom().items(line, "\n"));
     }
@@ -80,7 +82,7 @@ public class GitFlowRequestProcessor {
         return Uni.createFrom().item( ()-> new GeneralResponse<>(
                 provisioner.getPodNames(deployment,nameSpace),GeneralResponse.Status.ACCEPTED)
                 )
-                .runSubscriptionOn(executor);
+                .runSubscriptionOn(gitFlowExecutorSvc);
     }
 
     private List<String> readLog(Reader reader) {
@@ -95,7 +97,7 @@ public class GitFlowRequestProcessor {
 
 
     public Uni<GeneralResponse<String>> readinessStatOfDeployment(FetchK8sInfoRequest request) {
-        return Uni.createFrom().item(request).emitOn(executor).map(r ->
+        return Uni.createFrom().item(request).emitOn(gitFlowExecutorSvc).map(r ->
                 {
                     if (provisioner.deploymentIsReady(r.objectName(), r.ns()))
                         return new GeneralResponse<>("Deployment is now running and ready for traffic."
@@ -112,7 +114,7 @@ public class GitFlowRequestProcessor {
     }
 
     public Uni<GeneralResponse<String>> checkBuildPhase(FetchK8sInfoRequest reqBody) {
-        return Uni.createFrom().item(reqBody).emitOn(executor).map(item->{
+        return Uni.createFrom().item(reqBody).emitOn(gitFlowExecutorSvc).map(item->{
             var phase = provisioner.checkBuildPhase(item.objectName(),item.ns());
             return switch (phase) {
                 case "Pending", "New" -> new GeneralResponse<>(BuildStatus.STUCK.toString(), GeneralResponse.Status.OK);
@@ -128,7 +130,7 @@ public class GitFlowRequestProcessor {
     Uni<GitFlowResponse> processHandler(GitFlowMeta reqBody) {
         LOG.debug("inside method processHandler");
         return Uni.createFrom().item(() -> reqBody)
-                .emitOn(executor)
+                .emitOn(gitFlowExecutorSvc)
                 .flatMap(this::checkProjectExistenceWithResiliency)
                 .flatMap(this::createOrReturnImageStreamWithResiliency)
                 .flatMap(this::createOrUpdateBuildConfigWithResiliency)
@@ -204,7 +206,7 @@ public class GitFlowRequestProcessor {
         AtomicReference<GitFlowMeta> deploymentItem = new AtomicReference<>();
         preDeployment
                 .flatMap(this::triggerDeploymentWithResiliency)
-                .runSubscriptionOn(executor)
+                .runSubscriptionOn(gitFlowExecutorSvc)
                 .subscribe().with(
                         item -> {
                             LOG.debug("Deployment completed: {}", item);
