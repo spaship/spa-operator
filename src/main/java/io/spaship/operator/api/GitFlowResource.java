@@ -46,21 +46,21 @@ public class GitFlowResource {
         return grp.checkBuildPhase(reqBody) ;
     }
 
-    @Route(path = "/build-log", methods = Route.HttpMethod.POST) //TODO This blocks vertex loop
+    @Route(path = "/build-log", methods = Route.HttpMethod.POST)
     Multi<String> fetchBuildLog(RoutingContext rc) {
         var k8sInfoRequest = rc.body().asPojo(FetchK8sInfoRequest.class);
-        return grp.fetchBuildLog(k8sInfoRequest);
+        return grp.fetchLogByType(k8sInfoRequest, GitFlowRequestProcessor.LogType.BUILD);
     }
 
     @Route(path = "/deployment-log", methods = Route.HttpMethod.POST)
     Multi<String> fetchDeploymentLog(RoutingContext rc) {
         var reqBody = rc.body().asPojo(FetchK8sInfoRequest.class);
-        return grp.fetchDeploymentLog(reqBody);
+        return grp.fetchLogByType(reqBody, GitFlowRequestProcessor.LogType.DEPLOYMENT);
     }
     @Route(path = "/pod-log", methods = Route.HttpMethod.POST)
     Multi<String> fetchPodLog(RoutingContext rc) {
         var reqBody = rc.body().asPojo(FetchK8sInfoRequest.class);
-        return grp.fetchPodLog(reqBody);
+        return grp.fetchLogByType(reqBody, GitFlowRequestProcessor.LogType.POD);
     }
 
     @Route(path = "/pods-by-deployment", methods = Route.HttpMethod.GET)

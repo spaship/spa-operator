@@ -4,7 +4,6 @@ package io.spaship.operator.business;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
-import io.smallrye.mutiny.tuples.Tuple2;
 import io.spaship.operator.service.k8s.GitFlowResourceProvisioner;
 import io.spaship.operator.type.*;
 import io.spaship.operator.util.BuildConfigYamlModifier;
@@ -17,10 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.time.Duration;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -60,26 +56,19 @@ public class GitFlowRequestProcessor {
         return process.apply(meta);
     }
 
-
-    public Multi<String> fetchBuildLog(FetchK8sInfoRequest request) {
-        return Uni.createFrom().item(() -> readLog(provisioner.getBuildLog(request.objectName(), request.ns(),
-                        request.upto())))
-                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
-                .onItem().transformToMulti(lines -> Multi.createFrom().iterable(lines))
-                .flatMap(line -> Multi.createFrom().items(line, "\n"));
+    Map<LogType,Function<FetchK8sInfoRequest,List<String>>>  logFunctionRepository(){
+        Map<LogType,Function<FetchK8sInfoRequest,List<String>>> readLogFunctionList= new EnumMap<>(LogType.class);
+        readLogFunctionList.put(LogType.BUILD,
+                input -> readLog(provisioner.getBuildLog(input.objectName(), input.ns(), input.upto())));
+        readLogFunctionList.put(LogType.DEPLOYMENT,
+                input -> readLog(provisioner.getDeploymentLog(input.objectName(), input.ns(), input.upto())));
+        readLogFunctionList.put(LogType.POD,
+                input -> readLog(provisioner.getPodLog(input.objectName(), input.ns(), input.upto())));
+        return readLogFunctionList;
     }
 
-    public Multi<String> fetchDeploymentLog(FetchK8sInfoRequest request) {
-        return Uni.createFrom().item(() -> readLog(provisioner.getDeploymentLog(request.objectName(), request.ns(),
-                        request.upto())))
-                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
-                .onItem().transformToMulti(lines -> Multi.createFrom().iterable(lines))
-                .flatMap(line -> Multi.createFrom().items(line, "\n"));
-    }
-
-    public Multi<String> fetchPodLog(FetchK8sInfoRequest request) {
-        return Uni.createFrom().item(() -> readLog(provisioner.getPodLog(request.objectName(), request.ns(),
-                        request.upto())))
+    public Multi<String> fetchLogByType(FetchK8sInfoRequest request,LogType logType){
+        return Uni.createFrom().item(() -> logFunctionRepository().get(logType).apply(request))
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
                 .onItem().transformToMulti(lines -> Multi.createFrom().iterable(lines))
                 .flatMap(line -> Multi.createFrom().items(line, "\n"));
@@ -237,6 +226,16 @@ public class GitFlowRequestProcessor {
             LOG.warn("Build {} failed. Please check the openshift console " +
                     "for more details. The execution will end here, " +
                     "and deployment will be skipped.",buildName);
+            LOG.debug("scheduling DEPLOYMENT_CANCELLED event");
+            eventManager.queue(EventStructure.builder()
+                    .websiteName(input.fetchDeploymentDetails().website())
+                    .environmentName(input.fetchDeploymentDetails().environment())
+                    .uuid(UUID.randomUUID())
+                    .state(ExecutionStates.DEPLOYMENT_CANCELLED.toString())
+                    .spaName(input.fetchDeploymentDetails().app())
+                    .contextPath(input.fetchDeploymentDetails().contextPath())
+                    .build()
+            );
             return input.constructedGitFlowMeta();
         }
         LOG.debug("Build is successful, continuing the deployment");
@@ -335,9 +334,12 @@ public class GitFlowRequestProcessor {
         PROJECT_CHECK,IS_CRETE, BUILD_CFG_CREATE, BUILD_TRIGGER, DEPLOYMENT_TRIGGER
     }
     enum ExecutionStates {
-        BUILD_ENDED,DEPLOYMENT_STARTED
+        BUILD_ENDED,DEPLOYMENT_STARTED,DEPLOYMENT_CANCELLED
     }
     enum BuildStatus{
         STUCK,IN_PROGRESS,COMPLETED,FAILED,CHECK_OS_CONSOLE,NOT_FOUND
+    }
+    public enum LogType{
+        BUILD,DEPLOYMENT,POD
     }
 }

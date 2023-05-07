@@ -5,7 +5,6 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.openshift.api.model.BuildRequest;
 import io.fabric8.openshift.api.model.BuildRequestBuilder;
 import io.fabric8.openshift.client.OpenShiftClient;
-import io.spaship.operator.type.K8sResourceLog;
 import io.spaship.operator.util.ReUsableItems;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +13,7 @@ import javax.enterprise.context.ApplicationScoped;
 import java.io.InputStream;
 import java.io.Reader;
 import java.util.*;
-import java.util.stream.Collectors;
+
 
 @ApplicationScoped
 //todo extract all Logs related functions to another class, separate the concerns
@@ -95,13 +94,13 @@ public class GitFlowResourceProvisioner {
     }
 
     public Reader getDeploymentLog(String deploymentName, String ns, int upto){
-        LOG.debug("Inside getTailingBuildLog");
+        LOG.debug("getDeploymentLog called with deploymentName: {}; namespace: {}; upto: {}", deploymentName, ns, upto);
         return openShiftClient.apps().deployments().inNamespace(ns).withName(deploymentName)
                 .tailingLines(upto).withPrettyOutput().getLogReader();
     }
 
     public Reader getPodLog(String podName, String ns, int upto){
-        LOG.debug("Inside getTailingBuildLog");
+        LOG.debug("getPodLog called with podName: {}; namespace: {}; upto: {}", podName, ns, upto);
         return openShiftClient.pods().inNamespace(ns).withName(podName)
                 .tailingLines(upto).withPrettyOutput().getLogReader();
     }
