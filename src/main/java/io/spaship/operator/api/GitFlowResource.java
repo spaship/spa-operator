@@ -1,6 +1,7 @@
 package io.spaship.operator.api;
 
 
+import io.quarkus.security.Authenticated;
 import io.quarkus.vertx.web.Route;
 import io.quarkus.vertx.web.RouteBase;
 import io.quarkus.vertx.web.RoutingExchange;
@@ -16,6 +17,7 @@ import java.util.List;
 
 @ApplicationScoped
 @RouteBase(path = "api/gf/v1")
+@Authenticated
 public class GitFlowResource {
 
     private final GitFlowRequestProcessor grp;
