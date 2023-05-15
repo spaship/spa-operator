@@ -163,10 +163,12 @@ public class Operator implements Operations {
   }
 
   private Map<String, String> buildTemplateParameterMap(Environment environment) {
-    var ns = (environment.getNameSpace()).replace("spaship--", "");
+
+    var tenantName = ConfigProvider.getConfig().getValue("mpp.tenant.name", String.class);
+    var ns = (environment.getNameSpace()).replace(tenantName.concat("--"), "");
     LOG.debug("Creating namespace with name {}", ns);
     var appCode = ConfigProvider.getConfig().getValue("mpp.app.code", String.class);
-    var tenantName = ConfigProvider.getConfig().getValue("mpp.tenant.name", String.class);
+
     var devOpsNamingConvention = ConfigProvider.getConfig()
         .getValue("application.devops.naming.convention", String.class);
 
