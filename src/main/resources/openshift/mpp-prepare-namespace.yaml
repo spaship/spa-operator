@@ -12,7 +12,7 @@ parameters:
     description: "Name of the parent project"
     required: true
   - name: "NS_NAME"
-    description: "based on web property name the automation will create the tenant"
+    description: "based on web property  and the tenant the automation will create the namespace"
     required: true
   - name: "DEVOPS_NAMING_CONVENTION"
     description: "deployment naming convention for related resources"
