@@ -87,7 +87,7 @@ public class SPAUploadHandler {
       eventManager.queue(EventStructure.builder()
         .websiteName(input.getValue2())
         .environmentName("NA")
-        .uuid(input.getValue1().getValue1())
+        .uuid(input.getValue1().getValue1().toString())
         .state("failed to process zip file due to ".concat(e.getMessage()))
         .spaName(input.getValue1().getValue0())
         .contextPath("NF")
@@ -105,7 +105,7 @@ public class SPAUploadHandler {
     eventManager.queue(EventStructure.builder()
       .websiteName(input.getValue2())
       .environmentName("NA")
-      .uuid(input.getValue1().getValue1())
+      .uuid(input.getValue1().getValue1().toString())
       .state("mapping file loaded into memory")
       .spaName(input.getValue1().getValue0())
       .contextPath(Objects.isNull(spaMapping) ? "NF" : spaMapping.getContextPath())
@@ -141,7 +141,7 @@ public class SPAUploadHandler {
       eventManager.queue(EventStructure.builder()
         .websiteName("NF")
         .environmentName("NA")
-        .uuid(input.getValue1())
+        .uuid(input.getValue1().toString())
         .state("failed to parse .spaship file, check app log")
         .build());
       return Collections.emptyList();
@@ -161,7 +161,7 @@ public class SPAUploadHandler {
       EventStructure.builder()
         .websiteName(spaMapping.getWebsiteName())
         .environmentName("NA")
-        .uuid(input.getValue1())
+        .uuid(input.getValue1().toString())
         .state("environments detected")
         .build());
 

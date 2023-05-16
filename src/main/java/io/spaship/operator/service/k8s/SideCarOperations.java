@@ -169,7 +169,7 @@ public class SideCarOperations {
         EventStructure.builder()
             .websiteName(opResp.getEnvironment().getWebsiteName())
             .environmentName(opResp.getEnvironment().getName())
-            .uuid(operationResponse.getEnvironment().getTraceID())
+            .uuid(operationResponse.getEnvironment().getTraceID().toString())
             .state(opResp.getErrorMessage() == null ? "spa deployment ops performed" : "spa deployment ops failed")
             .spaName(operationResponse.getSpaName())
             .contextPath(operationResponse.getContextPath())
