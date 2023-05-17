@@ -158,7 +158,7 @@ public class Operator implements Operations {
   private void createMpPlusProject(Environment environment) {
     Map<String, String> templateParameters = buildTemplateParameterMap(environment);
     createNewTenantNamespace(environment, templateParameters);
-    var eb = EventStructure.builder().uuid(environment.getTraceID());
+    var eb = EventStructure.builder().uuid(environment.getTraceID().toString());
     eb.websiteName(environment.getWebsiteName()).environmentName(environment.getName()).state(
         "namespace created successfully in {} cluster".replace("{}", environment.getNameSpace()));
     prepareNewTenantNameSpace(environment, templateParameters, eb);
@@ -375,7 +375,7 @@ public class Operator implements Operations {
   // TODO remove if blocks
   private void processK8sList(KubernetesList result, UUID tracing, String nameSpace) {
 
-    var eb = EventStructure.builder().uuid(tracing);
+    var eb = EventStructure.builder().uuid(tracing.toString());
 
     result.getItems().forEach(item -> {
       if (item instanceof Service svc) {
