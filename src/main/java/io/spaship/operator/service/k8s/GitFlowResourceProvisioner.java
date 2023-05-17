@@ -159,6 +159,8 @@ public class GitFlowResourceProvisioner {
             var build = openShiftClient.builds().inNamespace(ns).withName(buildName).get();
             var durationInNanos = build.getStatus().getDuration();
             meta.put("Phase",build.getStatus().getPhase());
+            meta.put("Name",buildName);
+            meta.put("NameSpace",ns);
             // 1 second = 1_000_000_000 nano seconds
             meta.put("DurationInSecs",(durationInNanos / 1_000_000_000));
         }catch(Exception ex){
