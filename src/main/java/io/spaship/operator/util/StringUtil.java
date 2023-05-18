@@ -6,4 +6,11 @@ public class StringUtil {
         return str.matches("/+");
     }
 
+
+
+    public static boolean equalsDockerfile(String str) {
+        return "Dockerfile".equals(str);
+    }
+
+
 }

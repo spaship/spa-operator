@@ -19,6 +19,9 @@ parameters:
   - name: OUTPUT_NAME
     description: The name of the ImageStreamTag to output
     required: true
+  - name: DOCKER_FILE_PATH
+    description: specify the location of the Dockerfile in the source repository which OpenShift uses to execute a Docker build
+    value: "Dockerfile"
 objects:
   - apiVersion: build.openshift.io/v1
     kind: BuildConfig
@@ -38,4 +41,4 @@ objects:
       strategy:
         type: Docker
         dockerStrategy:
-          dockerfilePath: Dockerfile
+          dockerfilePath: ${DOCKER_FILE_PATH}

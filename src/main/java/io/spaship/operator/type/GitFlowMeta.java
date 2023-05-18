@@ -13,7 +13,7 @@ import java.util.Objects;
 
 public record GitFlowMeta(SsrResourceDetails deploymentDetails, String gitRef, String repoUrl, String contextDir,
                           List<Map<String, String>> buildArgs, String nameSpace,
-                          boolean reDeployment, String buildName) {
+                          boolean reDeployment, String buildName, String dockerFilePath) {
 
     private static final Logger LOG = LoggerFactory.getLogger(GitFlowMeta.class);
 
@@ -34,6 +34,8 @@ public record GitFlowMeta(SsrResourceDetails deploymentDetails, String gitRef, S
                 Objects.nonNull(deploymentDetails.app()) &&
                 Objects.nonNull(deploymentDetails.environment()))
             params.put("OUTPUT_NAME", buildOutputLocation());
+        if(Objects.nonNull(dockerFilePath) && !StringUtil.equalsDockerfile(dockerFilePath))
+            params.put("DOCKER_FILE_PATH", dockerFilePath);
         return params;
     }
 
@@ -113,7 +115,8 @@ public record GitFlowMeta(SsrResourceDetails deploymentDetails, String gitRef, S
                 this.buildArgs,
                 this.nameSpace,
                 this.reDeployment,
-                buildName
+                buildName,
+                this.dockerFilePath
         );
     }
 
