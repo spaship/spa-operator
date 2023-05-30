@@ -13,20 +13,18 @@ import io.spaship.operator.type.*;
 import io.vertx.ext.web.RoutingContext;
 
 import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Named;
 import java.util.List;
 
 
 @ApplicationScoped
 @RouteBase(path = "api/gf/v1")
-//@Authenticated
+@Authenticated
 public class GitFlowResource {
 
     private final GitFlowRequestProcessor grp;
-    OpenShiftClient ocBuildClient;
-    public GitFlowResource(GitFlowRequestProcessor requestProcessor, @Named("build")OpenShiftClient openshiftClientForBuild) {
+
+    public GitFlowResource(GitFlowRequestProcessor requestProcessor) {
         this.grp = requestProcessor;
-        this.ocBuildClient = ocBuildClient;
     }
 
     @Route(path = "", methods = Route.HttpMethod.GET)
