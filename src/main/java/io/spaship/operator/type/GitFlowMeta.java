@@ -1,6 +1,7 @@
 package io.spaship.operator.type;
 
 
+import io.spaship.operator.util.ReUsableItems;
 import io.spaship.operator.util.StringUtil;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.slf4j.Logger;
@@ -11,10 +12,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+
+
+
 public record GitFlowMeta(SsrResourceDetails deploymentDetails, String gitRef, String repoUrl, String contextDir,
                           List<Map<String, String>> buildArgs, String nameSpace,
                           boolean reDeployment, String buildName, String dockerFilePath) {
-
+// TODO introduce a new variable called remoteBuild to control the build from incoming payload
     private static final Logger LOG = LoggerFactory.getLogger(GitFlowMeta.class);
 
     public Map<String, String> toTemplateParameterMap() {
@@ -36,9 +40,38 @@ public record GitFlowMeta(SsrResourceDetails deploymentDetails, String gitRef, S
             params.put("OUTPUT_NAME", buildOutputLocation());
         if(Objects.nonNull(dockerFilePath) && !StringUtil.equalsDockerfile(dockerFilePath))
             params.put("DOCKER_FILE_PATH", dockerFilePath);
+
+        /*
+         * Regardless of whether it is a remote or local build, these parameters will be included.
+         * This provision allows for future flexibility in case the following details need to be configured
+         * from the front-end or middleware. In such a scenario,
+         * three new members will need to be introduced in this class.
+         **/
+        params.put("REPOSITORY_URL", ConfigProvider.getConfig()
+                .getValue("mpp.remote.build.repository.url", String.class));
+        params.put("IMAGE_TAG",deploymentDetails.
+                website().concat(".")
+                .concat(deploymentDetails.app()).concat(".")
+                .concat(deploymentDetails.environment()) );
+        params.put("IMAGE_PUSH_SECRET", ReUsableItems.remoteBuildImageRepoSecretName());
+
         return params;
     }
 
+    public String completeRemoteImageRepoUrl(){
+        var baseUrl = ConfigProvider.getConfig()
+                .getValue("mpp.remote.build.repository.url", String.class);
+        var imageTag = deploymentDetails.
+                website().concat(".")
+                .concat(deploymentDetails.app()).concat(".")
+                .concat(deploymentDetails.environment());
+        boolean isRemoteBuild = ReUsableItems.isRemoteBuild();
+        if(!isRemoteBuild || Objects.isNull(baseUrl))
+            throw new RuntimeException("`mpp.remote.build.repository.url` not found or remote build is disabled");
+        var imageUrl = baseUrl.concat(":").concat(imageTag);
+        LOG.info("constructed remote repository url is {}",imageUrl);
+        return imageUrl;
+    }
     public Map<String, String> toIsTemplateParameterMap() {
         Map<String, String> params = new HashMap<>();
         if (Objects.nonNull(deploymentDetails) &&
@@ -100,8 +133,15 @@ public record GitFlowMeta(SsrResourceDetails deploymentDetails, String gitRef, S
     }
 
     private SsrResourceDetails constructNewDeploymentResource() {
-        return new SsrResourceDetails(nameSpace,
-                completeImageRepoUrl(), deploymentDetails.app(), deploymentDetails.contextPath(),
+        boolean isRemoteBuild = ConfigProvider.getConfig().getValue("mpp.remote.build", Boolean.class);
+        String imageRepoUrl = null;
+        if(isRemoteBuild){
+            imageRepoUrl = completeRemoteImageRepoUrl();
+        }else{
+            imageRepoUrl = completeImageRepoUrl();
+        }
+        return new SsrResourceDetails(nameSpace,imageRepoUrl
+                , deploymentDetails.app(), deploymentDetails.contextPath(),
                 deploymentDetails.healthCheckPath(), deploymentDetails.website(),
                 deploymentDetails.environment(), deploymentDetails.port(), deploymentDetails.configMap());
     }
@@ -136,7 +176,7 @@ public record GitFlowMeta(SsrResourceDetails deploymentDetails, String gitRef, S
     }
 
     public enum BuildType {
-        REGULAR, MONO, WITH_BUILD_ARG, MONO_WITH_BUILD_ARG
+        REGULAR, MONO, WITH_BUILD_ARG, MONO_WITH_BUILD_ARG,REMOTE_BUILD
     }
 
 }

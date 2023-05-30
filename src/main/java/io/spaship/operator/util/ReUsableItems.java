@@ -2,6 +2,7 @@ package io.spaship.operator.util;
 
 import io.spaship.operator.repo.SharedRepository;
 import lombok.SneakyThrows;
+import org.eclipse.microprofile.config.ConfigProvider;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 
 public class ReUsableItems {
   private static final String SPASHIP_MAPPING_FILE = ".spaship";
@@ -69,5 +71,19 @@ public class ReUsableItems {
     }
     return subset;
   }
+
+  public static boolean isRemoteBuild(){
+    return ConfigProvider.getConfig().getValue("mpp.remote.build", Boolean.class);
+  }
+
+  public static String remoteBuildNameSpace(){
+    return ConfigProvider.getConfig().getValue("mpp.remote.build.ns", String.class);
+  }
+
+  public static String remoteBuildImageRepoSecretName(){
+    return ConfigProvider.getConfig()
+            .getValue("mpp.remote.build.repository.access.secret", String.class);
+  }
+
 
 }

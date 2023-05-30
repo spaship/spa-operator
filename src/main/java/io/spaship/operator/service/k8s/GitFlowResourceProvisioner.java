@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Named;
 import java.io.InputStream;
 import java.io.Reader;
 import java.util.*;
@@ -23,9 +24,12 @@ public class GitFlowResourceProvisioner {
     private static final String IMAGE_STREAM_TEMPLATE_LOCATION = "/openshift/is-template.yaml";
     private static final String BUILD_CONFIG_TEMPLATE_LOCATION = "/openshift/build-template.yaml";
     private final OpenShiftClient openShiftClient;
+    private final OpenShiftClient remoteBuildClient;
 
-    public GitFlowResourceProvisioner(OpenShiftClient openShiftClient) {
+    public GitFlowResourceProvisioner(@Named("default")OpenShiftClient openShiftClient,
+                                      @Named("build")OpenShiftClient remoteBuildClient) {
         this.openShiftClient = openShiftClient;
+        this.remoteBuildClient = remoteBuildClient;
     }
 
 
@@ -60,17 +64,25 @@ public class GitFlowResourceProvisioner {
     }
 
 
-    public String triggerBuild(String buildConfigName, String ns) {
+    public String triggerBuildWrapper(String buildConfigName, String ns, boolean isRemote){
+        OpenShiftClient selectedClient = openShiftClient;
+        if(isRemote){
+            LOG.debug("Remote build client selected ");
+            selectedClient = remoteBuildClient;
+        }
+        return triggerBuild(buildConfigName,ns,selectedClient);
+    }
 
+    private String triggerBuild(String buildConfigName, String ns, OpenShiftClient client) {
         BuildRequest buildRequest = new BuildRequestBuilder()
                 .withNewMetadata()
                 .withName(buildConfigName)
                 .endMetadata()
                 .build();
-        var buildConfig = openShiftClient.buildConfigs().inNamespace(ns).withName(buildConfigName).isReady();
+        var buildConfig = client.buildConfigs().inNamespace(ns).withName(buildConfigName).isReady();
         throwExceptionWhenConditionNotMatched(buildConfig,
                 "BuildConfig resource named " + buildConfigName + " in namespace " + ns + " not found ");
-        var build = openShiftClient.buildConfigs().inNamespace(ns).withName(buildConfigName).instantiate(buildRequest);
+        var build = client.buildConfigs().inNamespace(ns).withName(buildConfigName).instantiate(buildRequest);
         Objects.requireNonNull(build,
                 "something went wrong with build created from " + buildConfigName + " in namespace " + ns);
         return build.getMetadata().getName();
@@ -190,4 +202,21 @@ public class GitFlowResourceProvisioner {
         if (!condition)
             throw new RuntimeException(message);
     }
+
+    public void createOrUpdateRemoteBuildConfig(InputStream is,
+                                                Map<String, String> templateParameterMap, String ns) {
+        var buildConfig = remoteBuildClient
+                .templates()
+                .load(is)
+                .processLocally(templateParameterMap);
+        createOrReplaceRemoteBuild(buildConfig,ns,"Remote BuildConfig created successfully.");
+    }
+
+    void createOrReplaceRemoteBuild(KubernetesList buildConfig, String ns, String debugMessage) {
+        var createdRemoteBc = remoteBuildClient.resourceList(buildConfig).inNamespace(ns)
+                .createOrReplace();
+        LOG.debug(debugMessage, createdRemoteBc);
+    }
+
+
 }

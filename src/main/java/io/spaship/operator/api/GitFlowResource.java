@@ -1,6 +1,7 @@
 package io.spaship.operator.api;
 
 
+import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.security.Authenticated;
 import io.quarkus.vertx.web.Route;
 import io.quarkus.vertx.web.RouteBase;
@@ -12,18 +13,20 @@ import io.spaship.operator.type.*;
 import io.vertx.ext.web.RoutingContext;
 
 import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Named;
 import java.util.List;
 
 
 @ApplicationScoped
 @RouteBase(path = "api/gf/v1")
-@Authenticated
+//@Authenticated
 public class GitFlowResource {
 
     private final GitFlowRequestProcessor grp;
-
-    public GitFlowResource(GitFlowRequestProcessor requestProcessor) {
+    OpenShiftClient ocBuildClient;
+    public GitFlowResource(GitFlowRequestProcessor requestProcessor, @Named("build")OpenShiftClient openshiftClientForBuild) {
         this.grp = requestProcessor;
+        this.ocBuildClient = ocBuildClient;
     }
 
     @Route(path = "", methods = Route.HttpMethod.GET)

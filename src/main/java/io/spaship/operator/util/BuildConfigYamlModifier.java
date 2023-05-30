@@ -10,10 +10,7 @@ import org.yaml.snakeyaml.Yaml;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 //TODO refactor this class and remove duplicate codes
 public class BuildConfigYamlModifier {
@@ -106,6 +103,28 @@ public class BuildConfigYamlModifier {
                     .getResourceAsStream(templatePath);
         Yaml yaml = new Yaml();
         return new Result(ocTemplate, yaml);
+    }
+
+    public static InputStream modifyForRemoteBuild(InputStream is) {
+        Yaml yaml = new Yaml();
+        Map<String, Object> data = yaml.load(is);
+
+        List<Map<String, Object>> objects = (List<Map<String, Object>>) data.get("objects");
+        Map<String, Object> buildConfig = objects.get(0);
+        Map<String, Object> spec = (Map<String, Object>) buildConfig.get("spec");
+        Map<String, Object> output = (Map<String, Object>) spec.get("output");
+        Map<String, Object> to = (Map<String, Object>) output.get("to");
+
+        to.put("kind", "DockerImage");
+        to.put("name", "${REPOSITORY_URL}:${IMAGE_TAG}");
+
+        Map<String, String> pushSecret = new HashMap<>();
+        pushSecret.put("name", "${IMAGE_PUSH_SECRET}");
+        output.put("pushSecret", pushSecret);
+
+        String newYaml = yaml.dump(data);
+
+        return new ByteArrayInputStream(newYaml.getBytes(StandardCharsets.UTF_8));
     }
 
     private record Result(InputStream ocTemplate, Yaml yaml) {

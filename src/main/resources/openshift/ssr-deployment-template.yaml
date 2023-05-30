@@ -93,6 +93,8 @@ objects:
             app: ${APP}
             app.mpp.io/managed-by: spaship
         spec:
+          imagePullSecrets:
+            - name: ${IMAGE-PULL-SECRET}
           containers:
             # Main container to serve data
             - name: app-container
@@ -191,4 +193,7 @@ parameters:
   - name: "REWRITE-PATH"
     value: "/"
     description: "Rewrite path attribute in router object"
+    required: false
+  - name: "IMAGE-PULL-SECRET"
+    description: "The secret to use for pulling images"
     required: false

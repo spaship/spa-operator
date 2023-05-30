@@ -8,6 +8,8 @@ import io.spaship.operator.config.SPAShipThreadPool;
 import io.spaship.operator.service.k8s.GitFlowResourceProvisioner;
 import io.spaship.operator.type.*;
 import io.spaship.operator.util.BuildConfigYamlModifier;
+import io.spaship.operator.util.ReUsableItems;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,6 +22,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -155,6 +158,10 @@ public class GitFlowRequestProcessor {
 
     GitFlowMeta createOrReturnImageStream(GitFlowMeta input) {
         LOG.debug("inside method createOrReturnImageStream");
+        if(ReUsableItems.isRemoteBuild()){
+            LOG.info("remote build detected skipping the image stream");
+            return input;
+        }
         boolean isAvailable = provisioner.imageStreamExists(input.imageStreamName(), input.nameSpace());
         if (!isAvailable) { // based on isAvailable it skips creating image stream
             LOG.info("cannot find the image stream, so creating a new one.");
@@ -171,7 +178,11 @@ public class GitFlowRequestProcessor {
         GitFlowMeta.BuildType type = input.typeOfBuild();
         try {
             InputStream is = generateBuildTemplate(input, type);
-            provisionBuildConfig(is, input);
+            if(ReUsableItems.isRemoteBuild()){
+                LOG.info("remote build detected");
+                is = BuildConfigYamlModifier.modifyForRemoteBuild(is); //TODO Modifying the reference is not a good idea, refactoring is required?
+            }
+            provisionBuildConfig(is, input,ReUsableItems.isRemoteBuild());
         } catch (IOException e) {
             LOG.error("An error was encountered during the processing of BuildType {} ", type);
             throw new RuntimeException(e);
@@ -193,7 +204,15 @@ public class GitFlowRequestProcessor {
     }
     GitFlowMeta triggerBuild(GitFlowMeta input) {
         LOG.debug("inside method triggerBuild");
-        var buildName = provisioner.triggerBuild(input.buildConfigName(), input.nameSpace());
+        String buildName = null;
+
+        if(ReUsableItems.isRemoteBuild()){
+            buildName = provisioner
+                    .triggerBuildWrapper(input.buildConfigName(),ReUsableItems.remoteBuildNameSpace(),true);
+            return input.newGitFlowMetaWithBuildName(buildName);
+        }
+        buildName = provisioner
+                .triggerBuildWrapper(input.buildConfigName(), input.nameSpace(),false);
         return input.newGitFlowMetaWithBuildName(buildName);
     }
 
@@ -285,12 +304,22 @@ public class GitFlowRequestProcessor {
         }
     }
 
-    private void provisionBuildConfig(InputStream is, GitFlowMeta input) throws IOException {
+    private void provisionBuildConfig(InputStream is, GitFlowMeta input, boolean isRemoteBuild) throws IOException {
+        if(isRemoteBuild){
+            try (InputStream autoCloseableIs = is) {
+                provisioner.createOrUpdateRemoteBuildConfig(
+                        autoCloseableIs,input.toTemplateParameterMap(),ReUsableItems.remoteBuildNameSpace()
+                );
+            }
+            return;
+        }
         if (Objects.isNull(is)) {
             provisioner.createOrUpdateBuildConfig(input.toTemplateParameterMap(), input.nameSpace());
         } else {
             try (InputStream autoCloseableIs = is) {
-                provisioner.createOrUpdateBuildConfig(autoCloseableIs, input.toTemplateParameterMap(), input.nameSpace());
+                provisioner.createOrUpdateBuildConfig(
+                        autoCloseableIs, input.toTemplateParameterMap(), input.nameSpace()
+                );
             }
         }
     }

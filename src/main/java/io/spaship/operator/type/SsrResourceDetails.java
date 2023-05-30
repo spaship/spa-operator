@@ -3,6 +3,8 @@ package io.spaship.operator.type;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+
+import io.spaship.operator.util.ReUsableItems;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +36,10 @@ public record SsrResourceDetails(String nameSpace, String imageUrl, String app, 
 
         var routerDomain = fetchRouterDomain();
         if(Objects.nonNull(routerDomain))
-            params.put("ROUTER-DOMAIN", routerDomain);        
+            params.put("ROUTER-DOMAIN", routerDomain);
+
+        //TODO remove this code and introduce a new class for credentials, for handling private image repo
+        params.put("IMAGE-PULL-SECRET", ReUsableItems.remoteBuildImageRepoSecretName());
 
         return params;
     }

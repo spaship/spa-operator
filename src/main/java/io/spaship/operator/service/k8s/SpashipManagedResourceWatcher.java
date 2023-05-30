@@ -25,7 +25,7 @@ public class SpashipManagedResourceWatcher {
   private final String nameSpace;
   private final Map<String, String> filter = Map.of("managedBy", "spaship");
 
-  public SpashipManagedResourceWatcher(OpenShiftClient kubernetesClient, @Named("defaultNamespaceMT") String nameSpace) {
+  public SpashipManagedResourceWatcher(@Named("default")OpenShiftClient kubernetesClient, @Named("defaultNamespaceMT") String nameSpace) {
     this.kubernetesClient = kubernetesClient;
     this.nameSpace = nameSpace;
   }
