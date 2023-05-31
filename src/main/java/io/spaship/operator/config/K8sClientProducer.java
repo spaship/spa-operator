@@ -87,7 +87,7 @@ public class K8sClientProducer {
     final ConfigBuilder configBuilder = new ConfigBuilder();
 
 
-    if (!ProfileManager.getActiveProfile().toLowerCase().contains("dev")) {
+    if (!ProfileManager.getActiveProfile().toLowerCase().contains("local")) {
       configBuilder.withOauthToken(ConfigProvider.getConfig().getValue("mpp.cluster.access.token", String.class));
     }
 
@@ -107,7 +107,7 @@ public class K8sClientProducer {
     final KubernetesClientBuilder kubernetesClientBuilder = new KubernetesClientBuilder();
     final ConfigBuilder configBuilder = new ConfigBuilder();
 
-    if (!ProfileManager.getActiveProfile().toLowerCase().contains("dev")) {
+    if (!ProfileManager.getActiveProfile().toLowerCase().contains("local")) {
       configBuilder.withOauthToken(ConfigProvider.getConfig()
               .getValue("mpp.remote.build.cluster.access.token", String.class));
     }

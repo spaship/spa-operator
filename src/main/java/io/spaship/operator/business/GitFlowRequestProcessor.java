@@ -64,7 +64,7 @@ public class GitFlowRequestProcessor {
     Map<LogType,Function<FetchK8sInfoRequest,List<String>>>  logFunctionRepository(){
         Map<LogType,Function<FetchK8sInfoRequest,List<String>>> readLogFunctionList= new EnumMap<>(LogType.class);
         readLogFunctionList.put(LogType.BUILD,
-                input -> readLog(provisioner.getBuildLog(input.objectName(), input.ns(), input.upto())));
+                input -> readLog(provisioner.getBuildLog(input.objectName(), input.ns(), input.upto(),input.isProduction())));
         readLogFunctionList.put(LogType.DEPLOYMENT,
                 input -> readLog(provisioner.getDeploymentLog(input.objectName(), input.ns(), input.upto())));
         readLogFunctionList.put(LogType.POD,
@@ -242,7 +242,11 @@ public class GitFlowRequestProcessor {
         LOG.debug("inside method triggerDeployment");
         var buildName = input.buildName();
         var project = input.fetchNameSpace();
-        waitForBuildEnd(buildName,project,input.fetchDeploymentDetails());
+        if(ReUsableItems.isRemoteBuild()){
+            waitForBuildEnd(buildName,ReUsableItems.remoteBuildNameSpace(),input.fetchDeploymentDetails(),true);
+        }else{
+            waitForBuildEnd(buildName,project,input.fetchDeploymentDetails(),false);
+        }
         if(!provisioner.isBuildSuccessful(buildName,project)){
             LOG.warn("Build {} failed. Please check the openshift console " +
                     "for more details. The execution will end here, " +
@@ -276,12 +280,12 @@ public class GitFlowRequestProcessor {
         return input.constructedGitFlowMeta();
     }
 
-    void waitForBuildEnd(String buildName, String ns, SsrResourceDetails deploymentDetails){
+    void waitForBuildEnd(String buildName, String ns, SsrResourceDetails deploymentDetails, boolean remoteBuild){
         LOG.info("waiting for build: {} in project {} to complete",buildName,ns);
         int attempt =0;
         while(true){
             LOG.debug("waiting for build attempt {}",attempt);
-            if(provisioner.hasBuildEnded(buildName,ns)){
+            if(provisioner.hasBuildEnded(buildName,ns,remoteBuild)){
                 LOG.info("exiting from the while loop, the build has been ended");
                 eventManager.queue(EventStructure.builder()
                         .websiteName(deploymentDetails.website())

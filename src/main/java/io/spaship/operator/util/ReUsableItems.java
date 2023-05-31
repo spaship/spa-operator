@@ -84,6 +84,9 @@ public class ReUsableItems {
     return ConfigProvider.getConfig()
             .getValue("mpp.remote.build.repository.access.secret", String.class);
   }
-
+  public static String remoteBuildImagePullSecret(){
+    return ConfigProvider.getConfig()
+            .getValue("mpp.remote.build.imagepull.secret", String.class);
+  }
 
 }

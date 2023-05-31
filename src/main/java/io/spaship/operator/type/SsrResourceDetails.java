@@ -39,8 +39,8 @@ public record SsrResourceDetails(String nameSpace, String imageUrl, String app, 
             params.put("ROUTER-DOMAIN", routerDomain);
 
         //TODO remove this code and introduce a new class for credentials, for handling private image repo
-        params.put("IMAGE-PULL-SECRET", ReUsableItems.remoteBuildImageRepoSecretName());
-
+        params.put("IMAGE-PULL-SECRET-NAME", ReUsableItems.remoteBuildImageRepoSecretName());
+        params.put("REPO-ACCESS-CREDS", ReUsableItems.remoteBuildImagePullSecret());
         return params;
     }
 

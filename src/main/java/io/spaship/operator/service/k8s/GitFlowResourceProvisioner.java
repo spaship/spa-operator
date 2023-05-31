@@ -89,11 +89,11 @@ public class GitFlowResourceProvisioner {
     }
 
 
-    public Reader getBuildLog(String buildName, String ns, int upto) {
+    public Reader getBuildLog(String buildName, String ns, int upto, boolean isRemoteBuild) {
         LOG.debug("getBuildLog called with buildName: {}; namespace: {}; upto: {}", buildName, ns, upto);
         if (upto <= 0)
-            return getCompleteBuildLog(buildName, ns);
-        return getTailingBuildLog(buildName, ns, upto);
+            return getCompleteBuildLog(buildName, ns,isRemoteBuild);
+        return getTailingBuildLog(buildName, ns, upto,isRemoteBuild);
     }
 
     public boolean deploymentIsReady(String deploymentName, String ns) {
@@ -147,20 +147,45 @@ public class GitFlowResourceProvisioner {
         LOG.debug(debugMessage, createdBc);
     }
 
-    Reader getTailingBuildLog(String buildName, String ns, int upto) {
+    Reader getTailingBuildLog(String buildName, String ns, int upto, boolean isRemoteBuild) {
         LOG.debug("Inside getTailingBuildLog");
-        return openShiftClient.builds().inNamespace(ns).withName(buildName)
+        OpenShiftClient client = null;
+        if(isRemoteBuild){
+            LOG.debug("fetching log for remote build ");
+            client = remoteBuildClient;
+        }else{
+            LOG.debug("fetching log for local build ");
+            client = openShiftClient;
+        }
+        return client.builds().inNamespace(ns).withName(buildName)
                 .tailingLines(upto).withPrettyOutput().getLogReader();
     }
 
-    Reader getCompleteBuildLog(String buildName, String ns) {
+    Reader getCompleteBuildLog(String buildName, String ns, boolean isRemoteBuild) {
         LOG.debug("Inside getCompleteBuildLog");
-        return openShiftClient.builds().inNamespace(ns).withName(buildName).getLogReader();
+        OpenShiftClient client = null;
+        if(isRemoteBuild){
+            LOG.debug("fetching build log for remote build");
+            client = remoteBuildClient;
+        }else{
+            LOG.debug("fetching build log for local build");
+            client = openShiftClient;
+        }
+
+        return client.builds().inNamespace(ns).withName(buildName).getLogReader();
     }
 
-    public boolean hasBuildEnded(String buildName, String ns) {
+    public boolean hasBuildEnded(String buildName, String ns, boolean isRemoteBuild) {
         LOG.debug("Invoked hasBuildEnded");
-        var phase = openShiftClient.builds().inNamespace(ns).withName(buildName).get().getStatus().getPhase();
+        OpenShiftClient client = null;
+        if(isRemoteBuild){
+            LOG.debug("checking remote build status");
+            client = remoteBuildClient;
+        }else{
+            LOG.debug("checking local build status");
+            client = openShiftClient;
+        }
+        var phase = client.builds().inNamespace(ns).withName(buildName).get().getStatus().getPhase();
         return "Complete".equals(phase) || "Failed".equals(phase) || "Cancelled".equals(phase);
     }
 

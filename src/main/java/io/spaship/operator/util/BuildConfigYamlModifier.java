@@ -106,6 +106,12 @@ public class BuildConfigYamlModifier {
     }
 
     public static InputStream modifyForRemoteBuild(InputStream is) {
+
+        if(Objects.isNull(is)){
+            LOG.info("It's a regular remote build, creating InputStream directly from the template");
+            is = BuildConfigYamlModifier.class.getResourceAsStream(BUILD_TEMPLATE_PATH);
+        }
+
         Yaml yaml = new Yaml();
         Map<String, Object> data = yaml.load(is);
 
