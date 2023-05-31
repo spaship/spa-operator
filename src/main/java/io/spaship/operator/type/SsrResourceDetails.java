@@ -41,6 +41,10 @@ public record SsrResourceDetails(String nameSpace, String imageUrl, String app, 
         //TODO remove this code and introduce a new class for credentials, for handling private image repo
         params.put("IMAGE-PULL-SECRET-NAME", ReUsableItems.remoteBuildImageRepoSecretName());
         params.put("REPO-ACCESS-CREDS", ReUsableItems.remoteBuildImagePullSecret());
+
+        LOG.debug("\n");
+        LOG.debug("deployment parameters are as follows {}",params);
+        LOG.debug("\n");
         return params;
     }
 

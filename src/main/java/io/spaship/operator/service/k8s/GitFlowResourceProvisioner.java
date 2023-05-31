@@ -91,6 +91,7 @@ public class GitFlowResourceProvisioner {
 
     public Reader getBuildLog(String buildName, String ns, int upto, boolean isRemoteBuild) {
         LOG.debug("getBuildLog called with buildName: {}; namespace: {}; upto: {}", buildName, ns, upto);
+
         if (upto <= 0)
             return getCompleteBuildLog(buildName, ns,isRemoteBuild);
         return getTailingBuildLog(buildName, ns, upto,isRemoteBuild);
@@ -206,15 +207,31 @@ public class GitFlowResourceProvisioner {
         return meta;
     }
 
-    public boolean isBuildSuccessful(String buildName, String ns){
+    public boolean isBuildSuccessful(String buildName, String ns, boolean isRemoteBuild){
         LOG.debug("Invoked isBuildSuccessful");
-        var phase = openShiftClient.builds().inNamespace(ns).withName(buildName).get().getStatus().getPhase();
+        OpenShiftClient client = null;
+        if(isRemoteBuild){
+            LOG.debug("checking build status for remote build");
+            client = remoteBuildClient;
+        }else{
+            LOG.debug("checking build status for local build");
+            client = openShiftClient;
+        }
+        var phase = client.builds().inNamespace(ns).withName(buildName).get().getStatus().getPhase();
         return "Complete".equals(phase);
     }
 
-    public String checkBuildPhase(String buildName, String ns){
+    public String checkBuildPhase(String buildName, String ns, boolean isRemoteBuild){
         LOG.debug("Invoked isBuildSuccessful");
-        var build = openShiftClient.builds().inNamespace(ns).withName(buildName).get();
+        OpenShiftClient client = null;
+        if(isRemoteBuild){
+            LOG.debug("checking build phase for remote build");
+            client = remoteBuildClient;
+        }else{
+            LOG.debug("checking build phase for local build");
+            client = openShiftClient;
+        }
+        var build = client.builds().inNamespace(ns).withName(buildName).get();
         if(Objects.isNull(build))
             return "NF";
         return build.getStatus().getPhase();

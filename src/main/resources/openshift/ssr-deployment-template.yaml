@@ -21,12 +21,12 @@ objects:
     data:
       NODE_EXTRA_CA_CERTS: "/var/run/secrets/redhat-ca-bundle/ca-bundle.crt"
       BASE_PATH: "${CONTEXT-PATH}"
-  - apiVersion: v1
-    data:
-      .dockerconfigjson: ${REPO-ACCESS-CREDS}
-    kind: Secret  # TODO make this entry conditional 1. if not exists 2.If image repo is set to mpp.remote.build.repository.url
+  - kind: Secret
+    apiVersion: v1
     metadata:
-      name: ${IMAGE-PULL-SECRET-NAME}
+      name: "${IMAGE-PULL-SECRET-NAME}"
+    data:
+      .dockerconfigjson: "${REPO-ACCESS-CREDS}"
     type: kubernetes.io/dockerconfigjson
   - kind: Service
     apiVersion: v1

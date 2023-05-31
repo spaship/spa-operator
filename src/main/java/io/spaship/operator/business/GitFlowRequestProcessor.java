@@ -62,9 +62,15 @@ public class GitFlowRequestProcessor {
     }
 
     Map<LogType,Function<FetchK8sInfoRequest,List<String>>>  logFunctionRepository(){
+        boolean isRemoteBuild = ReUsableItems.isRemoteBuild();
         Map<LogType,Function<FetchK8sInfoRequest,List<String>>> readLogFunctionList= new EnumMap<>(LogType.class);
         readLogFunctionList.put(LogType.BUILD,
-                input -> readLog(provisioner.getBuildLog(input.objectName(), input.ns(), input.upto(),input.isProduction())));
+                input -> {
+                    String ns = input.ns();
+                    if(isRemoteBuild)
+                        ns = ReUsableItems.remoteBuildNameSpace();
+                    return readLog(provisioner.getBuildLog(input.objectName(),ns, input.upto(),isRemoteBuild));
+                });
         readLogFunctionList.put(LogType.DEPLOYMENT,
                 input -> readLog(provisioner.getDeploymentLog(input.objectName(), input.ns(), input.upto())));
         readLogFunctionList.put(LogType.POD,
@@ -118,7 +124,14 @@ public class GitFlowRequestProcessor {
 
     public Uni<GeneralResponse<String>> checkBuildPhase(FetchK8sInfoRequest reqBody) {
         return Uni.createFrom().item(reqBody).emitOn(gitFlowExecutorSvc).map(item->{
-            var phase = provisioner.checkBuildPhase(item.objectName(),item.ns());
+            boolean isRemoteBuild = ReUsableItems.isRemoteBuild();
+            String ns = null;
+            if(isRemoteBuild){
+                ns = ReUsableItems.remoteBuildNameSpace();
+            }else{
+                ns = item.ns();
+            }
+            var phase = provisioner.checkBuildPhase(item.objectName(),ns,isRemoteBuild);
             return switch (phase) {
                 case "Pending", "New" -> new GeneralResponse<>(BuildStatus.STUCK.toString(), GeneralResponse.Status.OK);
                 case "Running" -> new GeneralResponse<>(BuildStatus.IN_PROGRESS.toString(), GeneralResponse.Status.OK);
@@ -242,12 +255,14 @@ public class GitFlowRequestProcessor {
         LOG.debug("inside method triggerDeployment");
         var buildName = input.buildName();
         var project = input.fetchNameSpace();
-        if(ReUsableItems.isRemoteBuild()){
-            waitForBuildEnd(buildName,ReUsableItems.remoteBuildNameSpace(),input.fetchDeploymentDetails(),true);
+        boolean isRemoteBuild = ReUsableItems.isRemoteBuild();
+        if(isRemoteBuild){
+            project = ReUsableItems.remoteBuildNameSpace();
+            waitForBuildEnd(buildName,project,input.fetchDeploymentDetails(),true);
         }else{
             waitForBuildEnd(buildName,project,input.fetchDeploymentDetails(),false);
         }
-        if(!provisioner.isBuildSuccessful(buildName,project)){
+        if(!provisioner.isBuildSuccessful(buildName,project,isRemoteBuild)){
             LOG.warn("Build {} failed. Please check the openshift console " +
                     "for more details. The execution will end here, " +
                     "and deployment will be skipped.",buildName);
