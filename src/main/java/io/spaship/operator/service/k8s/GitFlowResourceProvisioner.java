@@ -190,11 +190,17 @@ public class GitFlowResourceProvisioner {
         return "Complete".equals(phase) || "Failed".equals(phase) || "Cancelled".equals(phase);
     }
 
-    public Map<String,Object> fetchBuildMeta(String buildName, String ns) {
+    public Map<String,Object> fetchBuildMeta(String buildName, String ns, boolean isRemote) {
         LOG.debug("Invoked buildMeta");
         Map<String,Object> meta = new HashMap<>();
+        OpenShiftClient client = null;
+        if(isRemote){
+            client = remoteBuildClient;
+        }else{
+            client = openShiftClient;
+        }
         try{
-            var build = openShiftClient.builds().inNamespace(ns).withName(buildName).get();
+            var build = client.builds().inNamespace(ns).withName(buildName).get();
             var durationInNanos = build.getStatus().getDuration();
             meta.put("Phase",build.getStatus().getPhase());
             meta.put("Name",buildName);

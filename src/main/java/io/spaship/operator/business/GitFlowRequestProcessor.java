@@ -309,7 +309,7 @@ public class GitFlowRequestProcessor {
                         .state(ExecutionStates.BUILD_ENDED.toString())
                         .spaName(deploymentDetails.app())
                         .contextPath("NA")
-                        .meta(provisioner.fetchBuildMeta(buildName,ns))
+                        .meta(provisioner.fetchBuildMeta(buildName,ns,ReUsableItems.isRemoteBuild()))
                         .build()
                 );
                 break;
