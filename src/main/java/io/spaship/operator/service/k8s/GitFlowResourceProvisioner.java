@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Named;
 import java.io.InputStream;
 import java.io.Reader;
 import java.util.*;
@@ -23,9 +24,12 @@ public class GitFlowResourceProvisioner {
     private static final String IMAGE_STREAM_TEMPLATE_LOCATION = "/openshift/is-template.yaml";
     private static final String BUILD_CONFIG_TEMPLATE_LOCATION = "/openshift/build-template.yaml";
     private final OpenShiftClient openShiftClient;
+    private final OpenShiftClient remoteBuildClient;
 
-    public GitFlowResourceProvisioner(OpenShiftClient openShiftClient) {
+    public GitFlowResourceProvisioner(@Named("default")OpenShiftClient openShiftClient,
+                                      @Named("build")OpenShiftClient remoteBuildClient) {
         this.openShiftClient = openShiftClient;
+        this.remoteBuildClient = remoteBuildClient;
     }
 
 
@@ -60,28 +64,37 @@ public class GitFlowResourceProvisioner {
     }
 
 
-    public String triggerBuild(String buildConfigName, String ns) {
+    public String triggerBuildWrapper(String buildConfigName, String ns, boolean isRemote){
+        OpenShiftClient selectedClient = openShiftClient;
+        if(isRemote){
+            LOG.debug("Remote build client selected ");
+            selectedClient = remoteBuildClient;
+        }
+        return triggerBuild(buildConfigName,ns,selectedClient);
+    }
 
+    private String triggerBuild(String buildConfigName, String ns, OpenShiftClient client) {
         BuildRequest buildRequest = new BuildRequestBuilder()
                 .withNewMetadata()
                 .withName(buildConfigName)
                 .endMetadata()
                 .build();
-        var buildConfig = openShiftClient.buildConfigs().inNamespace(ns).withName(buildConfigName).isReady();
+        var buildConfig = client.buildConfigs().inNamespace(ns).withName(buildConfigName).isReady();
         throwExceptionWhenConditionNotMatched(buildConfig,
                 "BuildConfig resource named " + buildConfigName + " in namespace " + ns + " not found ");
-        var build = openShiftClient.buildConfigs().inNamespace(ns).withName(buildConfigName).instantiate(buildRequest);
+        var build = client.buildConfigs().inNamespace(ns).withName(buildConfigName).instantiate(buildRequest);
         Objects.requireNonNull(build,
                 "something went wrong with build created from " + buildConfigName + " in namespace " + ns);
         return build.getMetadata().getName();
     }
 
 
-    public Reader getBuildLog(String buildName, String ns, int upto) {
+    public Reader getBuildLog(String buildName, String ns, int upto, boolean isRemoteBuild) {
         LOG.debug("getBuildLog called with buildName: {}; namespace: {}; upto: {}", buildName, ns, upto);
+
         if (upto <= 0)
-            return getCompleteBuildLog(buildName, ns);
-        return getTailingBuildLog(buildName, ns, upto);
+            return getCompleteBuildLog(buildName, ns,isRemoteBuild);
+        return getTailingBuildLog(buildName, ns, upto,isRemoteBuild);
     }
 
     public boolean deploymentIsReady(String deploymentName, String ns) {
@@ -135,28 +148,59 @@ public class GitFlowResourceProvisioner {
         LOG.debug(debugMessage, createdBc);
     }
 
-    Reader getTailingBuildLog(String buildName, String ns, int upto) {
+    Reader getTailingBuildLog(String buildName, String ns, int upto, boolean isRemoteBuild) {
         LOG.debug("Inside getTailingBuildLog");
-        return openShiftClient.builds().inNamespace(ns).withName(buildName)
+        OpenShiftClient client = null;
+        if(isRemoteBuild){
+            LOG.debug("fetching log for remote build ");
+            client = remoteBuildClient;
+        }else{
+            LOG.debug("fetching log for local build ");
+            client = openShiftClient;
+        }
+        return client.builds().inNamespace(ns).withName(buildName)
                 .tailingLines(upto).withPrettyOutput().getLogReader();
     }
 
-    Reader getCompleteBuildLog(String buildName, String ns) {
+    Reader getCompleteBuildLog(String buildName, String ns, boolean isRemoteBuild) {
         LOG.debug("Inside getCompleteBuildLog");
-        return openShiftClient.builds().inNamespace(ns).withName(buildName).getLogReader();
+        OpenShiftClient client = null;
+        if(isRemoteBuild){
+            LOG.debug("fetching build log for remote build");
+            client = remoteBuildClient;
+        }else{
+            LOG.debug("fetching build log for local build");
+            client = openShiftClient;
+        }
+
+        return client.builds().inNamespace(ns).withName(buildName).getLogReader();
     }
 
-    public boolean hasBuildEnded(String buildName, String ns) {
+    public boolean hasBuildEnded(String buildName, String ns, boolean isRemoteBuild) {
         LOG.debug("Invoked hasBuildEnded");
-        var phase = openShiftClient.builds().inNamespace(ns).withName(buildName).get().getStatus().getPhase();
+        OpenShiftClient client = null;
+        if(isRemoteBuild){
+            LOG.debug("checking remote build status");
+            client = remoteBuildClient;
+        }else{
+            LOG.debug("checking local build status");
+            client = openShiftClient;
+        }
+        var phase = client.builds().inNamespace(ns).withName(buildName).get().getStatus().getPhase();
         return "Complete".equals(phase) || "Failed".equals(phase) || "Cancelled".equals(phase);
     }
 
-    public Map<String,Object> fetchBuildMeta(String buildName, String ns) {
+    public Map<String,Object> fetchBuildMeta(String buildName, String ns, boolean isRemote) {
         LOG.debug("Invoked buildMeta");
         Map<String,Object> meta = new HashMap<>();
+        OpenShiftClient client = null;
+        if(isRemote){
+            client = remoteBuildClient;
+        }else{
+            client = openShiftClient;
+        }
         try{
-            var build = openShiftClient.builds().inNamespace(ns).withName(buildName).get();
+            var build = client.builds().inNamespace(ns).withName(buildName).get();
             var durationInNanos = build.getStatus().getDuration();
             meta.put("Phase",build.getStatus().getPhase());
             meta.put("Name",buildName);
@@ -169,15 +213,31 @@ public class GitFlowResourceProvisioner {
         return meta;
     }
 
-    public boolean isBuildSuccessful(String buildName, String ns){
+    public boolean isBuildSuccessful(String buildName, String ns, boolean isRemoteBuild){
         LOG.debug("Invoked isBuildSuccessful");
-        var phase = openShiftClient.builds().inNamespace(ns).withName(buildName).get().getStatus().getPhase();
+        OpenShiftClient client = null;
+        if(isRemoteBuild){
+            LOG.debug("checking build status for remote build");
+            client = remoteBuildClient;
+        }else{
+            LOG.debug("checking build status for local build");
+            client = openShiftClient;
+        }
+        var phase = client.builds().inNamespace(ns).withName(buildName).get().getStatus().getPhase();
         return "Complete".equals(phase);
     }
 
-    public String checkBuildPhase(String buildName, String ns){
+    public String checkBuildPhase(String buildName, String ns, boolean isRemoteBuild){
         LOG.debug("Invoked isBuildSuccessful");
-        var build = openShiftClient.builds().inNamespace(ns).withName(buildName).get();
+        OpenShiftClient client = null;
+        if(isRemoteBuild){
+            LOG.debug("checking build phase for remote build");
+            client = remoteBuildClient;
+        }else{
+            LOG.debug("checking build phase for local build");
+            client = openShiftClient;
+        }
+        var build = client.builds().inNamespace(ns).withName(buildName).get();
         if(Objects.isNull(build))
             return "NF";
         return build.getStatus().getPhase();
@@ -190,4 +250,21 @@ public class GitFlowResourceProvisioner {
         if (!condition)
             throw new RuntimeException(message);
     }
+
+    public void createOrUpdateRemoteBuildConfig(InputStream is,
+                                                Map<String, String> templateParameterMap, String ns) {
+        var buildConfig = remoteBuildClient
+                .templates()
+                .load(is)
+                .processLocally(templateParameterMap);
+        createOrReplaceRemoteBuild(buildConfig,ns,"Remote BuildConfig created successfully.");
+    }
+
+    void createOrReplaceRemoteBuild(KubernetesList buildConfig, String ns, String debugMessage) {
+        var createdRemoteBc = remoteBuildClient.resourceList(buildConfig).inNamespace(ns)
+                .createOrReplace();
+        LOG.debug(debugMessage, createdRemoteBc);
+    }
+
+
 }

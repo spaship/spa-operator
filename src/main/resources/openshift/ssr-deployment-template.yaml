@@ -21,6 +21,13 @@ objects:
     data:
       NODE_EXTRA_CA_CERTS: "/var/run/secrets/redhat-ca-bundle/ca-bundle.crt"
       BASE_PATH: "${CONTEXT-PATH}"
+  - kind: Secret
+    apiVersion: v1
+    metadata:
+      name: "${IMAGE-PULL-SECRET-NAME}"
+    data:
+      .dockerconfigjson: "${REPO-ACCESS-CREDS}"
+    type: kubernetes.io/dockerconfigjson
   - kind: Service
     apiVersion: v1
     metadata:
@@ -93,6 +100,8 @@ objects:
             app: ${APP}
             app.mpp.io/managed-by: spaship
         spec:
+          imagePullSecrets:
+            - name: ${IMAGE-PULL-SECRET-NAME}
           containers:
             # Main container to serve data
             - name: app-container
@@ -192,3 +201,9 @@ parameters:
     value: "/"
     description: "Rewrite path attribute in router object"
     required: false
+  - name: "IMAGE-PULL-SECRET-NAME"
+    description: "The secret name to use for pulling images"
+    required: false
+  - name: "REPO-ACCESS-CREDS"
+    description: image repo access credentials
+    required: true

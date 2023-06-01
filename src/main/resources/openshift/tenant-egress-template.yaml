@@ -4,7 +4,7 @@ metadata:
   name: tenant-egress-template
 objects:
   - apiVersion: tenant.paas.redhat.com/v1alpha1
-    kind: TenantEgress
+    kind: Tenant:q!Egress
     metadata:
       name: default
       namespace: ${NAMESPACE}
@@ -45,6 +45,9 @@ objects:
           type: Allow
         - to:
             dnsName: squid.corp.redhat.com
+          type: Allow
+        - to:
+            dnsName: images.paas.redhat.com
           type: Allow
 parameters:
   - name: NAMESPACE

@@ -55,7 +55,7 @@ public class SsrResourceProvisioner {
     private final OpenShiftClient client;
     private final String deNameSpace;
 
-    public SsrResourceProvisioner(OpenShiftClient client, @Named("deNamespace") String ns) {
+    public SsrResourceProvisioner(@Named("default")OpenShiftClient client, @Named("deNamespace") String ns) {
         this.client = client;
         this.deNameSpace = ns;
     }

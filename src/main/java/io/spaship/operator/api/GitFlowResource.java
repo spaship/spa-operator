@@ -1,6 +1,7 @@
 package io.spaship.operator.api;
 
 
+import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.security.Authenticated;
 import io.quarkus.vertx.web.Route;
 import io.quarkus.vertx.web.RouteBase;

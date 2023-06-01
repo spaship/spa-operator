@@ -50,7 +50,7 @@ public class Operator implements Operations {
   private final String appInstance;
   private final String deDebugNs;
 
-  public Operator(OpenShiftClient ocClient,
+  public Operator(@Named("default")OpenShiftClient ocClient,
       EventManager eventManager, @Named("deNamespace") String ns) {
     this.ocClient = ocClient;
     this.eventManager = eventManager;

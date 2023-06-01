@@ -8,6 +8,8 @@ import io.spaship.operator.config.SPAShipThreadPool;
 import io.spaship.operator.service.k8s.GitFlowResourceProvisioner;
 import io.spaship.operator.type.*;
 import io.spaship.operator.util.BuildConfigYamlModifier;
+import io.spaship.operator.util.ReUsableItems;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,6 +22,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -59,9 +62,15 @@ public class GitFlowRequestProcessor {
     }
 
     Map<LogType,Function<FetchK8sInfoRequest,List<String>>>  logFunctionRepository(){
+        boolean isRemoteBuild = ReUsableItems.isRemoteBuild();
         Map<LogType,Function<FetchK8sInfoRequest,List<String>>> readLogFunctionList= new EnumMap<>(LogType.class);
         readLogFunctionList.put(LogType.BUILD,
-                input -> readLog(provisioner.getBuildLog(input.objectName(), input.ns(), input.upto())));
+                input -> {
+                    String ns = input.ns();
+                    if(isRemoteBuild)
+                        ns = ReUsableItems.remoteBuildNameSpace();
+                    return readLog(provisioner.getBuildLog(input.objectName(),ns, input.upto(),isRemoteBuild));
+                });
         readLogFunctionList.put(LogType.DEPLOYMENT,
                 input -> readLog(provisioner.getDeploymentLog(input.objectName(), input.ns(), input.upto())));
         readLogFunctionList.put(LogType.POD,
@@ -115,7 +124,14 @@ public class GitFlowRequestProcessor {
 
     public Uni<GeneralResponse<String>> checkBuildPhase(FetchK8sInfoRequest reqBody) {
         return Uni.createFrom().item(reqBody).emitOn(gitFlowExecutorSvc).map(item->{
-            var phase = provisioner.checkBuildPhase(item.objectName(),item.ns());
+            boolean isRemoteBuild = ReUsableItems.isRemoteBuild();
+            String ns = null;
+            if(isRemoteBuild){
+                ns = ReUsableItems.remoteBuildNameSpace();
+            }else{
+                ns = item.ns();
+            }
+            var phase = provisioner.checkBuildPhase(item.objectName(),ns,isRemoteBuild);
             return switch (phase) {
                 case "Pending", "New" -> new GeneralResponse<>(BuildStatus.STUCK.toString(), GeneralResponse.Status.OK);
                 case "Running" -> new GeneralResponse<>(BuildStatus.IN_PROGRESS.toString(), GeneralResponse.Status.OK);
@@ -155,6 +171,10 @@ public class GitFlowRequestProcessor {
 
     GitFlowMeta createOrReturnImageStream(GitFlowMeta input) {
         LOG.debug("inside method createOrReturnImageStream");
+        if(ReUsableItems.isRemoteBuild()){
+            LOG.info("remote build detected skipping the image stream");
+            return input;
+        }
         boolean isAvailable = provisioner.imageStreamExists(input.imageStreamName(), input.nameSpace());
         if (!isAvailable) { // based on isAvailable it skips creating image stream
             LOG.info("cannot find the image stream, so creating a new one.");
@@ -171,7 +191,11 @@ public class GitFlowRequestProcessor {
         GitFlowMeta.BuildType type = input.typeOfBuild();
         try {
             InputStream is = generateBuildTemplate(input, type);
-            provisionBuildConfig(is, input);
+            if(ReUsableItems.isRemoteBuild()){
+                LOG.info("remote build detected");
+                is = BuildConfigYamlModifier.modifyForRemoteBuild(is); //TODO Modifying the reference is not a good idea, refactoring is required?
+            }
+            provisionBuildConfig(is, input,ReUsableItems.isRemoteBuild());
         } catch (IOException e) {
             LOG.error("An error was encountered during the processing of BuildType {} ", type);
             throw new RuntimeException(e);
@@ -193,7 +217,15 @@ public class GitFlowRequestProcessor {
     }
     GitFlowMeta triggerBuild(GitFlowMeta input) {
         LOG.debug("inside method triggerBuild");
-        var buildName = provisioner.triggerBuild(input.buildConfigName(), input.nameSpace());
+        String buildName = null;
+
+        if(ReUsableItems.isRemoteBuild()){
+            buildName = provisioner
+                    .triggerBuildWrapper(input.buildConfigName(),ReUsableItems.remoteBuildNameSpace(),true);
+            return input.newGitFlowMetaWithBuildName(buildName);
+        }
+        buildName = provisioner
+                .triggerBuildWrapper(input.buildConfigName(), input.nameSpace(),false);
         return input.newGitFlowMetaWithBuildName(buildName);
     }
 
@@ -223,8 +255,14 @@ public class GitFlowRequestProcessor {
         LOG.debug("inside method triggerDeployment");
         var buildName = input.buildName();
         var project = input.fetchNameSpace();
-        waitForBuildEnd(buildName,project,input.fetchDeploymentDetails());
-        if(!provisioner.isBuildSuccessful(buildName,project)){
+        boolean isRemoteBuild = ReUsableItems.isRemoteBuild();
+        if(isRemoteBuild){
+            project = ReUsableItems.remoteBuildNameSpace();
+            waitForBuildEnd(buildName,project,input.fetchDeploymentDetails(),true);
+        }else{
+            waitForBuildEnd(buildName,project,input.fetchDeploymentDetails(),false);
+        }
+        if(!provisioner.isBuildSuccessful(buildName,project,isRemoteBuild)){
             LOG.warn("Build {} failed. Please check the openshift console " +
                     "for more details. The execution will end here, " +
                     "and deployment will be skipped.",buildName);
@@ -257,12 +295,12 @@ public class GitFlowRequestProcessor {
         return input.constructedGitFlowMeta();
     }
 
-    void waitForBuildEnd(String buildName, String ns, SsrResourceDetails deploymentDetails){
+    void waitForBuildEnd(String buildName, String ns, SsrResourceDetails deploymentDetails, boolean remoteBuild){
         LOG.info("waiting for build: {} in project {} to complete",buildName,ns);
         int attempt =0;
         while(true){
             LOG.debug("waiting for build attempt {}",attempt);
-            if(provisioner.hasBuildEnded(buildName,ns)){
+            if(provisioner.hasBuildEnded(buildName,ns,remoteBuild)){
                 LOG.info("exiting from the while loop, the build has been ended");
                 eventManager.queue(EventStructure.builder()
                         .websiteName(deploymentDetails.website())
@@ -271,7 +309,7 @@ public class GitFlowRequestProcessor {
                         .state(ExecutionStates.BUILD_ENDED.toString())
                         .spaName(deploymentDetails.app())
                         .contextPath("NA")
-                        .meta(provisioner.fetchBuildMeta(buildName,ns))
+                        .meta(provisioner.fetchBuildMeta(buildName,ns,ReUsableItems.isRemoteBuild()))
                         .build()
                 );
                 break;
@@ -285,12 +323,22 @@ public class GitFlowRequestProcessor {
         }
     }
 
-    private void provisionBuildConfig(InputStream is, GitFlowMeta input) throws IOException {
+    private void provisionBuildConfig(InputStream is, GitFlowMeta input, boolean isRemoteBuild) throws IOException {
+        if(isRemoteBuild){
+            try (InputStream autoCloseableIs = is) {
+                provisioner.createOrUpdateRemoteBuildConfig(
+                        autoCloseableIs,input.toTemplateParameterMap(),ReUsableItems.remoteBuildNameSpace()
+                );
+            }
+            return;
+        }
         if (Objects.isNull(is)) {
             provisioner.createOrUpdateBuildConfig(input.toTemplateParameterMap(), input.nameSpace());
         } else {
             try (InputStream autoCloseableIs = is) {
-                provisioner.createOrUpdateBuildConfig(autoCloseableIs, input.toTemplateParameterMap(), input.nameSpace());
+                provisioner.createOrUpdateBuildConfig(
+                        autoCloseableIs, input.toTemplateParameterMap(), input.nameSpace()
+                );
             }
         }
     }

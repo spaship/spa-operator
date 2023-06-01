@@ -22,16 +22,6 @@ parameters:
   - name: DOCKER_FILE_PATH
     description: specify the location of the Dockerfile in the source repository which OpenShift uses to execute a Docker build
     value: "Dockerfile"
-  - name: REPOSITORY_URL
-    description: specify the base url of remote repository where the images will be stored
-    required: true
-  - name: IMAGE_TAG
-    description: image tag
-    required: true
-  - name: IMAGE_PUSH_SECRET
-    description: push secret is required to pull or push image to the repository
-    required: true
-
 objects:
   - apiVersion: build.openshift.io/v1
     kind: BuildConfig

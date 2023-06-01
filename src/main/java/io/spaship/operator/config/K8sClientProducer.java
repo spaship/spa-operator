@@ -81,12 +81,13 @@ public class K8sClientProducer {
   }
 
   @Produces
+  @Named("default")
   public OpenShiftClient  openshiftClient() {
     final KubernetesClientBuilder kubernetesClientBuilder = new KubernetesClientBuilder();
     final ConfigBuilder configBuilder = new ConfigBuilder();
 
 
-    if (!ProfileManager.getActiveProfile().toLowerCase().contains("dev")) {
+    if (!ProfileManager.getActiveProfile().toLowerCase().contains("local")) {
       configBuilder.withOauthToken(ConfigProvider.getConfig().getValue("mpp.cluster.access.token", String.class));
     }
 
@@ -100,6 +101,27 @@ public class K8sClientProducer {
     return kubernetesClientBuilder.withConfig(configBuilder.build()).build().adapt(OpenShiftClient.class);
   }
 
+  @Produces
+  @Named("build")
+  public OpenShiftClient  buildClient() {
+    final KubernetesClientBuilder kubernetesClientBuilder = new KubernetesClientBuilder();
+    final ConfigBuilder configBuilder = new ConfigBuilder();
 
+    if (!ProfileManager.getActiveProfile().toLowerCase().contains("local")) {
+      configBuilder.withOauthToken(ConfigProvider.getConfig()
+              .getValue("mpp.remote.build.cluster.access.token", String.class));
+    }
+
+    configBuilder.withTrustCerts(true)
+            .withMasterUrl(ConfigProvider.getConfig().getValue("mpp.remote.build.cluster.master.url", String.class))
+            .withConnectionTimeout(600000)
+            .withRequestTimeout(600000)
+            .withWebsocketTimeout(600000)
+            .withWebsocketPingInterval(600000)
+            .withUploadConnectionTimeout(600000)
+            .withUploadRequestTimeout(600000);
+    return kubernetesClientBuilder
+            .withConfig(configBuilder.build()).build().adapt(OpenShiftClient.class);
+  }
 
 }
