@@ -157,6 +157,7 @@ public class Operator implements Operations {
   // the implementation is determined by an attribute of application.properties
   private void createMpPlusProject(Environment environment) {
     Map<String, String> templateParameters = buildTemplateParameterMap(environment);
+    LOG.debug("creating namespace with parameter {}",templateParameters);
     createNewTenantNamespace(environment, templateParameters);
     var eb = EventStructure.builder().uuid(environment.getTraceID().toString());
     eb.websiteName(environment.getWebsiteName()).environmentName(environment.getName()).state(
@@ -231,8 +232,9 @@ public class Operator implements Operations {
             .build();
     var resource = ocClient.genericKubernetesResources(crdContext)
             .inNamespace(namespace).withName("default");
+    LOG.debug("TenantEgress resource is as follows {}",resource);
     var existingEgress = resource.get();
-
+    LOG.debug("existingEgress value is as follows {}",existingEgress);
     Objects.requireNonNull(existingEgress);
     var exceptionList = BuildConfigYamlModifier.extractEgressFromTemplate();
     Objects.requireNonNull(exceptionList);

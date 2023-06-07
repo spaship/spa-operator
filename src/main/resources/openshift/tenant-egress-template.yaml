@@ -4,7 +4,7 @@ metadata:
   name: tenant-egress-template
 objects:
   - apiVersion: tenant.paas.redhat.com/v1alpha1
-    kind: Tenant:q!Egress
+    kind: TenantEgress
     metadata:
       name: default
       namespace: ${NAMESPACE}

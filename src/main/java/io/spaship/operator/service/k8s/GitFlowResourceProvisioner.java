@@ -150,42 +150,21 @@ public class GitFlowResourceProvisioner {
 
     Reader getTailingBuildLog(String buildName, String ns, int upto, boolean isRemoteBuild) {
         LOG.debug("Inside getTailingBuildLog");
-        OpenShiftClient client = null;
-        if(isRemoteBuild){
-            LOG.debug("fetching log for remote build ");
-            client = remoteBuildClient;
-        }else{
-            LOG.debug("fetching log for local build ");
-            client = openShiftClient;
-        }
+        OpenShiftClient client = selectClient(isRemoteBuild,"fetching trailing build log");
         return client.builds().inNamespace(ns).withName(buildName)
                 .tailingLines(upto).withPrettyOutput().getLogReader();
     }
 
     Reader getCompleteBuildLog(String buildName, String ns, boolean isRemoteBuild) {
         LOG.debug("Inside getCompleteBuildLog");
-        OpenShiftClient client = null;
-        if(isRemoteBuild){
-            LOG.debug("fetching build log for remote build");
-            client = remoteBuildClient;
-        }else{
-            LOG.debug("fetching build log for local build");
-            client = openShiftClient;
-        }
+        OpenShiftClient client = selectClient(isRemoteBuild,"fetching build log");
 
         return client.builds().inNamespace(ns).withName(buildName).getLogReader();
     }
 
     public boolean hasBuildEnded(String buildName, String ns, boolean isRemoteBuild) {
         LOG.debug("Invoked hasBuildEnded");
-        OpenShiftClient client = null;
-        if(isRemoteBuild){
-            LOG.debug("checking remote build status");
-            client = remoteBuildClient;
-        }else{
-            LOG.debug("checking local build status");
-            client = openShiftClient;
-        }
+        OpenShiftClient client = selectClient(isRemoteBuild,"checking build status");
         var phase = client.builds().inNamespace(ns).withName(buildName).get().getStatus().getPhase();
         return "Complete".equals(phase) || "Failed".equals(phase) || "Cancelled".equals(phase);
     }
@@ -193,12 +172,7 @@ public class GitFlowResourceProvisioner {
     public Map<String,Object> fetchBuildMeta(String buildName, String ns, boolean isRemote) {
         LOG.debug("Invoked buildMeta");
         Map<String,Object> meta = new HashMap<>();
-        OpenShiftClient client = null;
-        if(isRemote){
-            client = remoteBuildClient;
-        }else{
-            client = openShiftClient;
-        }
+        OpenShiftClient client = selectClient(isRemote,"fetching build meta");
         try{
             var build = client.builds().inNamespace(ns).withName(buildName).get();
             var durationInNanos = build.getStatus().getDuration();
@@ -215,28 +189,14 @@ public class GitFlowResourceProvisioner {
 
     public boolean isBuildSuccessful(String buildName, String ns, boolean isRemoteBuild){
         LOG.debug("Invoked isBuildSuccessful");
-        OpenShiftClient client = null;
-        if(isRemoteBuild){
-            LOG.debug("checking build status for remote build");
-            client = remoteBuildClient;
-        }else{
-            LOG.debug("checking build status for local build");
-            client = openShiftClient;
-        }
+        OpenShiftClient client = selectClient(isRemoteBuild,"checking build status");
         var phase = client.builds().inNamespace(ns).withName(buildName).get().getStatus().getPhase();
         return "Complete".equals(phase);
     }
 
     public String checkBuildPhase(String buildName, String ns, boolean isRemoteBuild){
         LOG.debug("Invoked isBuildSuccessful");
-        OpenShiftClient client = null;
-        if(isRemoteBuild){
-            LOG.debug("checking build phase for remote build");
-            client = remoteBuildClient;
-        }else{
-            LOG.debug("checking build phase for local build");
-            client = openShiftClient;
-        }
+        OpenShiftClient client = selectClient(isRemoteBuild,"checking build phase");
         var build = client.builds().inNamespace(ns).withName(buildName).get();
         if(Objects.isNull(build))
             return "NF";
@@ -244,7 +204,17 @@ public class GitFlowResourceProvisioner {
     }
 
 
-
+    OpenShiftClient selectClient(boolean isRemote, String reason){
+        OpenShiftClient client = null;
+        if(isRemote){
+            LOG.debug("remote build client selected for {}",reason);
+            client = remoteBuildClient;
+        }else{
+            LOG.debug("local build client selected for {}",reason);
+            client = openShiftClient;
+        }
+        return client;
+    }
 
     private void throwExceptionWhenConditionNotMatched(boolean condition, String message) {
         if (!condition)
