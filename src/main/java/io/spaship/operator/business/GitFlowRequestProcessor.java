@@ -298,8 +298,27 @@ public class GitFlowRequestProcessor {
     void waitForBuildEnd(String buildName, String ns, SsrResourceDetails deploymentDetails, boolean remoteBuild){
         LOG.info("waiting for build: {} in project {} to complete",buildName,ns);
         int attempt =0;
+        int buildAttemptLimit = 1000;
         while(true){
             LOG.debug("waiting for build attempt {}",attempt);
+            if(attempt> buildAttemptLimit){
+                LOG.warn("forcefully exiting the build");
+                var buildMeta = provisioner.fetchBuildMeta(buildName,ns,ReUsableItems.isRemoteBuild());
+                buildMeta.put("Description","Force exited from code to prevent from infinite looping");
+                eventManager.queue(EventStructure.builder()
+                        .websiteName(deploymentDetails.website())
+                        .environmentName(deploymentDetails.environment())
+                        .uuid(UUID.randomUUID().toString())
+                        .state(ExecutionStates.FORCE_EXITED.toString())
+                        .spaName(deploymentDetails.app())
+                        .contextPath("NA")
+                        .meta(buildMeta)
+                        .build()
+                );
+                throw new RuntimeException(
+                        "Force exiting from the check build process after "+buildAttemptLimit+" " +
+                                "tries to prevent this process from further resource blocking");
+            }
             if(provisioner.hasBuildEnded(buildName,ns,remoteBuild)){
                 LOG.info("exiting from the while loop, the build has been ended");
                 eventManager.queue(EventStructure.builder()
@@ -385,7 +404,7 @@ public class GitFlowRequestProcessor {
         PROJECT_CHECK,IS_CRETE, BUILD_CFG_CREATE, BUILD_TRIGGER, DEPLOYMENT_TRIGGER
     }
     enum ExecutionStates {
-        BUILD_ENDED,DEPLOYMENT_STARTED,DEPLOYMENT_CANCELLED
+        BUILD_ENDED,DEPLOYMENT_STARTED,DEPLOYMENT_CANCELLED,FORCE_EXITED
     }
     enum BuildStatus{
         STUCK,IN_PROGRESS,COMPLETED,FAILED,CHECK_OS_CONSOLE,NOT_FOUND
