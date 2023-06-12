@@ -48,6 +48,13 @@ objects:
         to:
           kind: ImageStreamTag
           name: ${OUTPUT_NAME}  #<property>-<app>:<env>
+      resources:
+        limits:
+          cpu: '2000m'
+          memory: '2Gi'
+        requests:
+          cpu: '500m'
+          memory: '512Mi'
       strategy:
         type: Docker
         dockerStrategy:
