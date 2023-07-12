@@ -55,6 +55,12 @@ public class SsrRoute {
         return requestProcessor.processConfigUpdateRequest(reqBody);
     }
 
+    @Route(path = "/secret", methods = Route.HttpMethod.POST)
+    Uni<Optional<JsonObject>> updateSecret(RoutingContext rc) {
+        var reqBody = rc.body().asPojo(SsrResourceDetails.class);
+        return requestProcessor.processSecretUpdateRequest(reqBody);
+    }
+
     @Route(path = "/", methods = Route.HttpMethod.GET)
     void rootPath(RoutingExchange ex){
         ex.ok("ssr config status : online");

@@ -143,7 +143,8 @@ public record GitFlowMeta(SsrResourceDetails deploymentDetails, String gitRef, S
         return new SsrResourceDetails(nameSpace,imageRepoUrl
                 , deploymentDetails.app(), deploymentDetails.contextPath(),
                 deploymentDetails.healthCheckPath(), deploymentDetails.website(),
-                deploymentDetails.environment(), deploymentDetails.port(), deploymentDetails.configMap());
+                deploymentDetails.environment(), deploymentDetails.port(), deploymentDetails.configMap()
+                ,deploymentDetails.secretMap());
     }
 
     public GitFlowMeta newGitFlowMetaWithBuildName(String buildName) {

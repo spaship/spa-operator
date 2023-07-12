@@ -75,6 +75,32 @@ public class BuildConfigYamlModifier {
         return new ByteArrayInputStream(outputStream.toByteArray());
     }
 
+    @SneakyThrows
+    public static InputStream addDataToSecretMap(InputStream ocTemplate, Map<String, String> additionalData){
+        Result result = preProcess(ocTemplate,DEPLOYMENT_TEMPLATE_PATH);
+        Map<String, Object> parSedTemplate = result.yaml().load(result.ocTemplate());
+        List<Map<String, Object>> objects = (List<Map<String, Object>>) parSedTemplate.get("objects");
+
+        Map<String, Object> secretMap = null;
+        for (Map<String, Object> object : objects) {
+            if (object.get("kind").equals("Secret")) {
+                if(object.containsKey("stringData")){
+                    secretMap = object;
+                    break;
+                }
+
+            }
+        }
+        Objects.requireNonNull(secretMap,"Object Secret in containerized deployment template is null");
+        Map<String, String> data = (Map<String, String>) secretMap.get("stringData");
+        data.putAll(additionalData);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        result.yaml().dump(parSedTemplate, new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
+        result.ocTemplate().close();
+        return new ByteArrayInputStream(outputStream.toByteArray());
+    }
+
+
 
     public static List<Map<String, Object>> extractEgressFromTemplate(){
         Result result = preProcess(null,EGRESS_TEMPLATE_PATH);

@@ -9,9 +9,18 @@ import org.eclipse.microprofile.config.ConfigProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public record SsrResourceDetails(String nameSpace, String imageUrl, String app, String contextPath, String healthCheckPath, String website,
-                              String environment, String port,
-                              Map<String, String> configMap) {
+public record SsrResourceDetails
+        (String nameSpace,
+         String imageUrl,
+         String app,
+         String contextPath,
+         String healthCheckPath,
+         String website,
+         String environment,
+         String port,
+         Map<String, String> configMap,
+         Map<String, String> secretMap
+        ) {
 
     private static final Logger LOG = LoggerFactory.getLogger(SsrResourceDetails.class);
 
