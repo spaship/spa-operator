@@ -113,6 +113,8 @@ objects:
             app: ${APP}
             app.mpp.io/managed-by: spaship
         spec:
+          imagePullSecrets:
+            - name: ${IMAGE-PULL-SECRET-NAME}
           containers:
             # Main container to serve data
             - name: app-container

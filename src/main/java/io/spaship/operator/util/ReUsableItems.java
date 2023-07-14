@@ -12,7 +12,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.function.BooleanSupplier;
 
 public class ReUsableItems {
   private static final String SPASHIP_MAPPING_FILE = ".spaship";
@@ -80,13 +79,20 @@ public class ReUsableItems {
     return ConfigProvider.getConfig().getValue("mpp.remote.build.ns", String.class);
   }
 
-  public static String remoteBuildImageRepoSecretName(){
+  public static String remoteBuildImageRepoSecretName() {
     return ConfigProvider.getConfig()
             .getValue("mpp.remote.build.repository.access.secret", String.class);
   }
-  public static String remoteBuildImagePullSecret(){
+
+  public static String remoteBuildImagePullSecret() {
     return ConfigProvider.getConfig()
             .getValue("mpp.remote.build.imagepull.secret", String.class);
+  }
+
+  public static String selectContainerizedDeploymentOCTemplate() {
+    if (isRemoteBuild())
+      return "/openshift/ssr-deployment-rb-template.yaml";
+    return "/openshift/ssr-deployment-template.yaml";
   }
 
 }

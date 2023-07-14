@@ -4,9 +4,7 @@ package io.spaship.operator.util;
 import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.yaml.snakeyaml.Yaml;
-
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -17,7 +15,7 @@ public class BuildConfigYamlModifier {
     private static final Logger LOG = LoggerFactory.getLogger(BuildConfigYamlModifier.class);
 
     private static final String BUILD_TEMPLATE_PATH = "/openshift/build-template.yaml";
-    private static final String DEPLOYMENT_TEMPLATE_PATH = "/openshift/ssr-deployment-template.yaml";
+    private static final String DEPLOYMENT_TEMPLATE_PATH = ReUsableItems.selectContainerizedDeploymentOCTemplate();
     private static final String EGRESS_TEMPLATE_PATH = "/openshift/tenant-egress-template.yaml";
 
 
