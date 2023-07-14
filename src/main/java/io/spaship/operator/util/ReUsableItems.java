@@ -72,7 +72,10 @@ public class ReUsableItems {
   }
 
   public static boolean isRemoteBuild(){
-    return ConfigProvider.getConfig().getValue("mpp.remote.build", Boolean.class);
+    return ConfigProvider
+            .getConfig()
+            .getOptionalValue("mpp.remote.build", Boolean.class)
+            .orElse(false);
   }
 
   public static String remoteBuildNameSpace(){
