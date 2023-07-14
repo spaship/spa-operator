@@ -9,6 +9,7 @@ import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.tuples.Tuple3;
 import io.spaship.operator.exception.SsrException;
 import io.spaship.operator.util.BuildConfigYamlModifier;
+import io.spaship.operator.util.ReUsableItems;
 import lombok.SneakyThrows;
 
 import org.slf4j.Logger;
@@ -30,10 +31,9 @@ import org.eclipse.microprofile.config.ConfigProvider;
 @ApplicationScoped
 public class SsrResourceProvisioner {
 
-    private static final String DEPLOYMENT_TEMPLATE_LOCATION = "/openshift/ssr-deployment-template.yaml";
+    private static final String DEPLOYMENT_TEMPLATE_LOCATION = ReUsableItems.selectContainerizedDeploymentOCTemplate();
     private static final String NEW_NS_TEMPLATE = "/openshift/mpp-namespace-template.yaml";
     private static final String NS_NETWORK_POLICY_TEMPLATE = "/openshift/mpp-prepare-namespace.yaml";
-    private static final String TENANT_EGRESS_TEMPLATE = "/openshift/tenant-egress-template.yaml";
     private static final String CONTAINER_NAME = "app-container";
 
     /*
