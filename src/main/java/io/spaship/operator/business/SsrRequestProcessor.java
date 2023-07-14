@@ -54,6 +54,10 @@ public class SsrRequestProcessor {
         return Uni.createFrom().item(() -> resourceDetails).emitOn(executor)
                 .map(this::updateConfigMap);
     }
+    public Uni<Optional<JsonObject>> processSecretUpdateRequest(SsrResourceDetails resourceDetails) {
+        return Uni.createFrom().item(() -> resourceDetails).emitOn(executor)
+                .map(this::updateSecret);
+    }
 
 
 
@@ -64,13 +68,28 @@ public class SsrRequestProcessor {
         var parameters = requestPayload.toTemplateParameterMap();
         boolean  isProvisioned;
         boolean hasConfigMap = Objects.nonNull(requestPayload.configMap()) && (!requestPayload.configMap().isEmpty());
-        if(hasConfigMap){
+        boolean hasSecret = Objects.nonNull(requestPayload.secretMap()) && (!requestPayload.secretMap().isEmpty());
+
+        if(hasConfigMap && hasSecret){
+            LOG.info("This deployment has both configmap and secret");
+            InputStream isWIthConfig = BuildConfigYamlModifier.addDataToConfigMap(
+                    null,requestPayload.configMap());
+            InputStream isWithConfigAndSecret = BuildConfigYamlModifier.addDataToSecretMap(
+                    isWIthConfig,requestPayload.secretMap());
+            isProvisioned = resourceProvisioner.createNewEnvironment(
+                    isWithConfigAndSecret,parameters,requestPayload.nameSpace());
+        }else if(hasConfigMap){
             LOG.info("This deployment has a configmap");
             InputStream is = BuildConfigYamlModifier.addDataToConfigMap(null,requestPayload.configMap());
+            isProvisioned = resourceProvisioner.createNewEnvironment(is,parameters,requestPayload.nameSpace());
+        }else if(hasSecret){
+            LOG.info("This deployment has a Secret");
+            InputStream is = BuildConfigYamlModifier.addDataToSecretMap(null,requestPayload.secretMap());
             isProvisioned = resourceProvisioner.createNewEnvironment(is,parameters,requestPayload.nameSpace());
         }else{
             isProvisioned = resourceProvisioner.createNewEnvironment(null,parameters,requestPayload.nameSpace());
         }
+
         if(isProvisioned){
             var constructedUrl = constructAccessUrl(parameters);
             LOG.info("constructed access url is {}",constructedUrl);
@@ -136,6 +155,21 @@ public class SsrRequestProcessor {
             
         throw new SsrException("failed to update resouce: ".concat(resourceDetails.toString()));
     }
+
+    private Optional<JsonObject> updateSecret(SsrResourceDetails resourceDetails) {
+        var labels =  Tuple3.of(resourceDetails.website(),
+                resourceDetails.app(),resourceDetails.environment());
+        var updateMapStatus = resourceProvisioner.updateSecretOf(labels,
+                resourceDetails.secretMap(),resourceDetails.nameSpace());
+        if(updateMapStatus){
+            var response = new JsonObject().put(STATUS, "updated");
+            return Optional.of(response);
+        }
+
+        throw new SsrException("failed to update resouce: ".concat(resourceDetails.toString()));
+    }
+
+
 
 
 }

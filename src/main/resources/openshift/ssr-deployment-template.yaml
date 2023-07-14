@@ -24,6 +24,19 @@ objects:
   - kind: Secret
     apiVersion: v1
     metadata:
+      name: "${WEBSITE}-${APP}-${ENV}-app-sec"
+      labels:
+        website: ${WEBSITE}
+        environment: ${ENV}
+        app: ${APP}
+        app.mpp.io/managed-by: spaship
+        paas.redhat.com/appcode: ${SPASHIP-APPCODE}
+    stringData:
+      DEFAULT: "S3CR3T"
+    type: Opaque
+  - kind: Secret
+    apiVersion: v1
+    metadata:
       name: "${IMAGE-PULL-SECRET-NAME}"
     data:
       .dockerconfigjson: "${REPO-ACCESS-CREDS}"
@@ -133,6 +146,8 @@ objects:
               envFrom:
                 - configMapRef:
                     name: ${WEBSITE}-${APP}-${ENV}
+                - secretRef:
+                    name: ${WEBSITE}-${APP}-${ENV}-app-sec
               volumeMounts:
                 - name: ca-crt
                   mountPath: /var/run/secrets/redhat-ca-bundle

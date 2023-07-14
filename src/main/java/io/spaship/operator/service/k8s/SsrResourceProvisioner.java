@@ -19,6 +19,7 @@ import javax.inject.Named;
 
 import java.io.InputStream;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -128,6 +129,36 @@ public class SsrResourceProvisioner {
         configMap.setData(configMapData);
 
         var outcome = configMapResource.patch(configMap);
+
+        var delPodStatus = deletePod(labelValues, nameSpace);
+
+        return Objects.nonNull(outcome) && delPodStatus;
+    }
+
+    public boolean updateSecretOf(Tuple3<String, String, String> labelValues, Map<String, String> secretValues,
+            String nameSpace) {
+
+        var resourceName = labelValues.getItem1()
+                .concat("-").concat(labelValues.getItem2()).concat("-")
+                .concat(labelValues.getItem3()).concat("-app-sec");
+        var secretResource = client.secrets()
+                .inNamespace(nameSpace(nameSpace)).withName(resourceName);
+        var secret = secretResource.get();
+
+        LOG.info("Found Secret with name  {}", secret.getMetadata().getName());
+
+        var secretData = secret.getData();
+
+        // Encoding all values to base64 before updating the hashmap is mandatory
+        secretValues.replaceAll((key, value) -> Base64.getEncoder().encodeToString(value.getBytes()));
+
+        secretData.putAll(secretValues);
+
+        LOG.info("New secret data is {}", secretData);
+
+        secret.setData(secretData);
+
+        var outcome = secretResource.patch(secret);
 
         var delPodStatus = deletePod(labelValues, nameSpace);
 
