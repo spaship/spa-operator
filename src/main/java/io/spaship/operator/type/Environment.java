@@ -1,5 +1,7 @@
 package io.spaship.operator.type;
 
+
+
 import java.nio.file.Path;
 import java.util.UUID;
 
@@ -19,10 +21,12 @@ public class Environment {
   private boolean operationPerformed = false; // for flagging purpose, to know whether any k8s operation is performed
   private String identification;
 
+  private String cmdbCode;
+
 
   public Environment(String name, String websiteName, UUID traceID, String nameSpace, boolean updateRestriction,
                      Path zipFileLocation, String websiteVersion, String spaName, String spaContextPath,
-                     String branch, boolean excludeFromEnvironment, boolean operationPerformed) {
+                     String branch, boolean excludeFromEnvironment, boolean operationPerformed, String cmdbCode) {
     this.name = replaceSpecialCharacters(name);
     this.websiteName = websiteName;
     this.traceID = traceID;
@@ -36,6 +40,7 @@ public class Environment {
     this.excludeFromEnvironment = excludeFromEnvironment;
     this.operationPerformed = operationPerformed;
     this.identification = getWebsiteName().concat("-").concat(name);
+    this.cmdbCode = cmdbCode;
   }
 
   public String getName() {
@@ -150,6 +155,15 @@ public class Environment {
 
   public void setIdentification(String identification) {
     this.identification = identification;
+  }
+
+
+  public void setCmdbCode(String cmdbCode) {
+    this.cmdbCode = cmdbCode;
+  }
+
+  public String getCmdbCode() {
+    return this.cmdbCode;
   }
 
   @Override

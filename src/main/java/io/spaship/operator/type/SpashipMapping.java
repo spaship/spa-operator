@@ -1,6 +1,7 @@
 package io.spaship.operator.type;
 
 import io.vertx.core.json.JsonObject;
+import lombok.Getter;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -22,6 +23,8 @@ public class SpashipMapping extends JsonObject {
   String branch;
   String contextPath;
 
+  String cmdbCode;
+
   SpashipMapping() {
     super();
   }
@@ -39,6 +42,7 @@ public class SpashipMapping extends JsonObject {
     setExcludeFromEnvs();
     setBranch();
     setContextPath();
+    setCmdbCode();
   }
 
   public String getWebsiteVersion() {
@@ -96,6 +100,15 @@ public class SpashipMapping extends JsonObject {
 
   public void setContextPath() {
     this.contextPath = this.getString("mapping");
+  }
+
+
+  public void setCmdbCode() {
+    this.cmdbCode = this.getString("cmdbCode");
+  }
+
+  public String getCmdbCode(){
+    return cmdbCode;
   }
 
   @Override

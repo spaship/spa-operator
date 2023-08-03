@@ -202,10 +202,11 @@ public class SPAUploadHandler {
     var branch = spaMapping.getBranch();
     var excludeFromEnvironment = (boolean) environmentMapping.get("exclude");
     var ns = Optional.ofNullable(environmentMapping.get("ns")).orElse(this.nameSpace);
+    var cmdbCode = spaMapping.getCmdbCode();
 
     Environment environment = new Environment(envName, websiteName, traceID, (String) ns, updateRestriction,
       zipFileLocation,
-      websiteVersion, spaName, spaContextPath, branch, excludeFromEnvironment, false);
+      websiteVersion, spaName, spaContextPath, branch, excludeFromEnvironment, false,cmdbCode);
     LOG.debug("Constructed environment object is {}", environment);
     return environment;
   }

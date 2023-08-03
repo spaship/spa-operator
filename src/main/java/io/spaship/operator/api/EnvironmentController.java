@@ -60,7 +60,8 @@ public class EnvironmentController {
       null,
       null,
       true,
-      false);
+      false,
+            null);
     return sidecarOps.triggerSyncAsync(syncRequestBody, environment);
 
   }

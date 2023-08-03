@@ -46,6 +46,10 @@ parameters:
   - name: "ROUTER_DOMAIN"
     description: "domain for router"
     required: true
+  - name: "CMDB_CODE"
+    value: "SPAS-001"
+    description: "cmdb code for the application"
+    required: true
 objects:
   - kind: ConfigMap
     apiVersion: v1
@@ -57,6 +61,7 @@ objects:
         environment: ${ENV}
         websiteVersion: ${WEBSITE_VERSION}
         app.kubernetes.io/managed-by: spaship
+        paas.redhat.com/appcode: ${CMDB_CODE}
     data:
       SIDECAR_SPADIR: "/app/data"
       SIDECAR_WEBSITENAME: ${WEBSITE}
@@ -74,6 +79,7 @@ objects:
         #tracing: ${TRACE_ID}
         websiteVersion: ${WEBSITE_VERSION}
         app.kubernetes.io/managed-by: spaship
+        paas.redhat.com/appcode: ${CMDB_CODE}
     spec:
       #      type: NodePort
       ports:
@@ -98,7 +104,7 @@ objects:
         kubernetes.io/reclaimPolicy: Delete
         trident.netapp.io/reclaimPolicy: Delete
       labels:
-        paas.redhat.com/appcode: SPAS-001
+        paas.redhat.com/appcode: ${CMDB_CODE}
         app.kubernetes.io/managed-by: spaship
     spec:
       accessModes: [ "ReadWriteMany" ]
@@ -120,6 +126,7 @@ objects:
         app.kubernetes.io/managed-by: spaship
         app.kubernetes.io/part-of: ${WEBSITE}
         app.openshift.io/runtime: apache
+        paas.redhat.com/appcode: ${CMDB_CODE}
     spec:
       selector:
         matchLabels:
@@ -133,7 +140,7 @@ objects:
             website: ${WEBSITE}
             managedBy: spaship
             environment: ${ENV}
-            #tracing: ${TRACE_ID}
+            paas.redhat.com/appcode: ${CMDB_CODE}
             websiteVersion: ${WEBSITE_VERSION}
         spec:
           containers:
@@ -220,6 +227,7 @@ objects:
       labels:
         app.kubernetes.io/managed-by: spaship
         shard: internal
+        paas.redhat.com/appcode: ${CMDB_CODE}
     spec:
       rules:
         - host: ${APP_INSTANCE_PREFIX}.${NS}.${WEBSITE}.${ENV}.${DOMAIN}
@@ -241,6 +249,7 @@ objects:
         environment: ${ENV}
         app.kubernetes.io/managed-by: spaship
         type: router
+        paas.redhat.com/appcode: ${CMDB_CODE}
     data:
       FALLBACK: ""
       LOG_FORMAT: json
@@ -258,6 +267,7 @@ objects:
         environment: ${ENV}
         app.kubernetes.io/managed-by: spaship
         type: router
+        paas.redhat.com/appcode: ${CMDB_CODE}
     spec:
       ports:
         - name: 8080-tcp
@@ -282,6 +292,7 @@ objects:
         app.kubernetes.io/managed-by: spaship
         app.kubernetes.io/part-of: ${WEBSITE}
         app.openshift.io/runtime: nodejs
+        paas.redhat.com/appcode: ${CMDB_CODE}
       annotations:
         app.openshift.io/connects-to: >-
           [{ "apiVersion":"apps/v1","kind":"Deployment","name":"${WEBSITE}-${ENV}" }]
@@ -338,6 +349,7 @@ objects:
       name: route-${WEBSITE}-${ENV}-${APP_INSTANCE_PREFIX}
       labels:
         shard: ${SHARD}
+        paas.redhat.com/appcode: ${CMDB_CODE}
       annotations:
         #haproxy.router.openshift.io/disable_cookies: 'true'
         haproxy.router.openshift.io/timeout: 5m
