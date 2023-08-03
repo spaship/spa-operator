@@ -19,7 +19,8 @@ public record SsrResourceDetails
          String environment,
          String port,
          Map<String, String> configMap,
-         Map<String, String> secretMap
+         Map<String, String> secretMap,
+         String cmdbCode
         ) {
 
     private static final Logger LOG = LoggerFactory.getLogger(SsrResourceDetails.class);
@@ -42,6 +43,9 @@ public record SsrResourceDetails
             params.put("ENV", environment);
         if(Objects.nonNull(port))
             params.put("CONPORT", port);
+
+        if(Objects.nonNull(cmdbCode))
+            params.put("CMDB_CODE", cmdbCode);
 
         var routerDomain = fetchRouterDomain();
         if(Objects.nonNull(routerDomain))

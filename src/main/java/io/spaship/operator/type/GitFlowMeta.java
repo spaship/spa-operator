@@ -144,7 +144,7 @@ public record GitFlowMeta(SsrResourceDetails deploymentDetails, String gitRef, S
                 , deploymentDetails.app(), deploymentDetails.contextPath(),
                 deploymentDetails.healthCheckPath(), deploymentDetails.website(),
                 deploymentDetails.environment(), deploymentDetails.port(), deploymentDetails.configMap()
-                ,deploymentDetails.secretMap());
+                ,deploymentDetails.secretMap(),deploymentDetails.cmdbCode());
     }
 
     public GitFlowMeta newGitFlowMetaWithBuildName(String buildName) {

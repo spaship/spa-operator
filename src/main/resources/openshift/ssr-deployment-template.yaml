@@ -17,7 +17,7 @@ objects:
         environment: ${ENV}
         app: ${APP}
         app.mpp.io/managed-by: spaship
-        paas.redhat.com/appcode: ${SPASHIP-APPCODE}
+        paas.redhat.com/appcode: ${CMDB_CODE}
     data:
       NODE_EXTRA_CA_CERTS: "/var/run/secrets/redhat-ca-bundle/ca-bundle.crt"
       BASE_PATH: "${CONTEXT-PATH}"
@@ -30,7 +30,7 @@ objects:
         environment: ${ENV}
         app: ${APP}
         app.mpp.io/managed-by: spaship
-        paas.redhat.com/appcode: ${SPASHIP-APPCODE}
+        paas.redhat.com/appcode: ${CMDB_CODE}
     stringData:
       DEFAULT: "S3CR3T"
     type: Opaque
@@ -50,7 +50,7 @@ objects:
         environment: ${ENV}
         app: ${APP}
         app.mpp.io/managed-by: spaship
-        paas.redhat.com/appcode: ${SPASHIP-APPCODE}
+        paas.redhat.com/appcode: ${CMDB_CODE}
     spec:
       ports:
         - port: 3000
@@ -67,7 +67,7 @@ objects:
       name: ${WEBSITE}-${APP}-${ENV}
       labels:
         shard: ${SHARD}
-        paas.redhat.com/appcode: ${SPASHIP-APPCODE}
+        paas.redhat.com/appcode: ${CMDB_CODE}
       annotations:
         #haproxy.router.openshift.io/disable_cookies: 'true'
         haproxy.router.openshift.io/timeout: 5m
@@ -96,7 +96,7 @@ objects:
         app.mpp.io/managed-by: spaship
         app.kubernetes.io/part-of: ${WEBSITE}-${ENV}
         app.openshift.io/runtime: js
-        paas.redhat.com/appcode: ${SPASHIP-APPCODE}
+        paas.redhat.com/appcode: ${CMDB_CODE}
     spec:
       selector:
         matchLabels:
@@ -219,4 +219,8 @@ parameters:
     required: false
   - name: "REPO-ACCESS-CREDS"
     description: image repo access credentials
+    required: true
+  - name: "CMDB_CODE"
+    value: "SPAS-001"
+    description: "cmdb code for the application"
     required: true
