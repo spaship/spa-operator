@@ -3,7 +3,7 @@ apiVersion: "v1"
 metadata:
   name: "namespace-template"
 labels:
-  template: "namnespace-template"
+  template: "namespace-template"
 parameters:
   - name: "APP_CODE"
     description: "App code of the parent project"
