@@ -323,7 +323,9 @@ public class Operator implements Operations {
         "STORAGE_CLASS", ConfigProvider.getConfig().getValue("storage.class", String.class),
         "NS", environment.getNameSpace(),
         "SHARD", routerShard,
-        "ROUTER_DOMAIN", routerDomain);
+        "ROUTER_DOMAIN", routerDomain,
+            "CMDB_CODE",environment.getCmdbCode()
+    );
     LOG.debug("building KubernetesList, templateParameters are as follows {}", templateParameters);
 
     KubernetesList kubernetesList = null;
