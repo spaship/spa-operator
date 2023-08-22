@@ -3,7 +3,7 @@ apiVersion: "v1"
 metadata:
   name: "namespace-template"
 labels:
-  template: "namnespace-template"
+  template: "namespace-template"
 parameters:
   - name: "APP_CODE"
     description: "App code of the parent project"
@@ -12,7 +12,7 @@ parameters:
     description: "Name of the parent project"
     required: true
   - name: "NS_NAME"
-    description: "based on web property  and the tenant the automation will create the namespace"
+    description: "based on web property and the tenant the automation will create the namespace"
     required: true
   - name: "DEVOPS_NAMING_CONVENTION"
     description: "deployment naming convention for related resources"
