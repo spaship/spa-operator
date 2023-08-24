@@ -154,8 +154,6 @@ public class SsrResourceProvisioner {
 
         secretData.putAll(secretValues);
 
-        LOG.info("New secret data is {}", secretData);
-
         secret.setData(secretData);
 
         var outcome = secretResource.patch(secret);
