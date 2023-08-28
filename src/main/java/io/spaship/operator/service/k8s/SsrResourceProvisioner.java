@@ -80,6 +80,8 @@ public class SsrResourceProvisioner {
                 .load(SsrResourceProvisioner.class.getResourceAsStream(DEPLOYMENT_TEMPLATE_LOCATION))
                 .processLocally(templateParam);
         var outcome = client.resourceList(environmentResourceObject).inNamespace(nameSpace(nameSpace)).delete();
+        LOG.info("outcome  {}", outcome);
+        LOG.info("environmentResourceObject  {}", environmentResourceObject);
         return Objects.nonNull(outcome);
     }
 
