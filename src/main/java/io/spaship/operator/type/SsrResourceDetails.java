@@ -55,6 +55,10 @@ public record SsrResourceDetails
         params.put("IMAGE-PULL-SECRET-NAME", ReUsableItems.remoteBuildImageRepoSecretName());
         params.put("REPO-ACCESS-CREDS", ReUsableItems.remoteBuildImagePullSecret());
 
+
+        params.put("APP_INSTANCE_PREFIX", ConfigProvider.getConfig().getValue("app.instance", String.class));
+
+
         LOG.debug("\n");
         LOG.debug("deployment parameters are as follows {}",params);
         LOG.debug("\n");

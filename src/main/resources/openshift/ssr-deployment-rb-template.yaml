@@ -73,7 +73,7 @@ objects:
         haproxy.router.openshift.io/timeout: 5m
         #haproxy.router.openshift.io/rewrite-target: "${REWRITE-PATH}"
     spec:
-      host: ${WEBSITE}-${ENV}.${ROUTER-DOMAIN}
+      host: route-${WEBSITE}-${ENV}-${APP_INSTANCE_PREFIX}.${ROUTER-DOMAIN}
       path: ${CONTEXT-PATH}
       to:
         kind: Service
@@ -225,4 +225,7 @@ parameters:
   - name: "CMDB_CODE"
     value: "SPAS-001"
     description: "cmdb code for the application"
+    required: true
+  - name: "APP_INSTANCE_PREFIX"
+    description: "application instance prefix"
     required: true
