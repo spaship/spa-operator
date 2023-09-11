@@ -23,59 +23,64 @@ public record SsrResourceDetails
          String cmdbCode
         ) {
 
-    private static final Logger LOG = LoggerFactory.getLogger(SsrResourceDetails.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(SsrResourceDetails.class);
 
 
-    public Map<String, String> toTemplateParameterMap(){
+    public Map<String, String> toTemplateParameterMap() {
         Map<String, String> params = new HashMap<>();
 
-        if(Objects.nonNull(imageUrl))
+        if (Objects.nonNull(imageUrl))
             params.put("IMAGE-URL", imageUrl);
-        if(Objects.nonNull(app))
+        if (Objects.nonNull(app))
             params.put("APP", app);
-        if(Objects.nonNull(contextPath))
+        if (Objects.nonNull(contextPath))
             params.put("CONTEXT-PATH", contextPath);
-        if(Objects.nonNull(healthCheckPath))
+        if (Objects.nonNull(healthCheckPath))
             params.put("HEALTH-CHECK-PATH", healthCheckPath);
-        if(Objects.nonNull(website))
+        if (Objects.nonNull(website))
             params.put("WEBSITE", website);
-        if(Objects.nonNull(environment))
+        if (Objects.nonNull(environment))
             params.put("ENV", environment);
-        if(Objects.nonNull(port))
+        if (Objects.nonNull(port))
             params.put("CONPORT", port);
 
-        if(Objects.nonNull(cmdbCode))
+        if (Objects.nonNull(cmdbCode))
             params.put("CMDB_CODE", cmdbCode);
 
         var routerDomain = fetchRouterDomain();
-        if(Objects.nonNull(routerDomain))
+        if (Objects.nonNull(routerDomain))
             params.put("ROUTER-DOMAIN", routerDomain);
 
-        //TODO remove this code and introduce a new class for credentials, for handling private image repo
-        params.put("IMAGE-PULL-SECRET-NAME", ReUsableItems.remoteBuildImageRepoSecretName());
-        params.put("REPO-ACCESS-CREDS", ReUsableItems.remoteBuildImagePullSecret());
+        //TODO remove this code and introduce a new class for credentials, for
+        // handling private image repo
+        params.put("IMAGE-PULL-SECRET-NAME",
+                ReUsableItems.remoteBuildImageRepoSecretName());
+        params.put("REPO-ACCESS-CREDS",
+                ReUsableItems.remoteBuildImagePullSecret());
 
 
-        params.put("APP_INSTANCE_PREFIX", ConfigProvider.getConfig().getValue("app.instance", String.class));
+        params.put("APP_INSTANCE_PREFIX", ConfigProvider.getConfig().getValue(
+                "app.instance", String.class));
 
 
         LOG.debug("\n");
-        LOG.debug("deployment parameters are as follows {}",params);
+        LOG.debug("deployment parameters are as follows {}", params);
         LOG.debug("\n");
         return params;
     }
 
-    public String fetchRouterDomain(){
+    public String fetchRouterDomain() {
         String routerDomainFromProperty = null;
-        try{
-            routerDomainFromProperty = ConfigProvider.getConfig().getValue("operator.domain.name", String.class);
-        }catch(Exception e){
-            LOG.error("failed to fetch the value of property operator.domain.name due to {}",e.getMessage());
+        try {
+            routerDomainFromProperty = ConfigProvider.getConfig().getValue(
+                    "operator.router.domain.name", String.class);
+        } catch (Exception e) {
+            LOG.error("failed to fetch the value of property operator.domain.name" +
+                    " due to {}", e.getMessage());
         }
         return routerDomainFromProperty;
     }
-
-
 
 
 }
