@@ -52,6 +52,11 @@ public record SsrResourceDetails
         if (Objects.nonNull(routerDomain))
             params.put("ROUTER-DOMAIN", routerDomain);
 
+        var shard = fetchShardFromConfig();
+        params.put("SHARD", shard);
+
+
+
         //TODO remove this code and introduce a new class for credentials, for
         // handling private image repo
         params.put("IMAGE-PULL-SECRET-NAME",
@@ -68,6 +73,14 @@ public record SsrResourceDetails
         LOG.debug("deployment parameters are as follows {}", params);
         LOG.debug("\n");
         return params;
+    }
+
+    private String fetchShardFromConfig() {
+        var shardType = ConfigProvider.getConfig().getValue(
+                "operator.router.shard.type", String.class);
+        if (Objects.isNull(shardType))
+            throw new RuntimeException("please set the route shard in configmap");
+        return shardType;
     }
 
     public String fetchRouterDomain() {
