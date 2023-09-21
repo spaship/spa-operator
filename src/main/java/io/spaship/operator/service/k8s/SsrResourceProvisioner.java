@@ -8,6 +8,7 @@ import io.fabric8.openshift.client.OpenShiftClient;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.tuples.Tuple3;
 import io.spaship.operator.exception.SsrException;
+import io.spaship.operator.type.K8sObjects;
 import io.spaship.operator.util.BuildConfigYamlModifier;
 import io.spaship.operator.util.ReUsableItems;
 import lombok.SneakyThrows;
@@ -20,10 +21,7 @@ import javax.inject.Named;
 
 import java.io.InputStream;
 import java.time.Duration;
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 import java.util.function.Consumer;
 import org.eclipse.microprofile.config.ConfigProvider;
@@ -109,58 +107,112 @@ public class SsrResourceProvisioner {
         LOG.info("rolling is done");
     }
 
-    public boolean updateConfigMapOf(Tuple3<String, String, String> labelValues, Map<String, String> configValues,
+
+    public boolean updateAppConfigAndResetPod(
+            Tuple3<String, String, String> labelValues,
+            Map<String, String> secretValues,
+            List<String> deleteKeys,
+            String nameSpace,
+            K8sObjects type
+    ) {
+
+        Optional<String> mapName = Optional.empty();
+
+        if(type == K8sObjects.SECRET_MAP){
+            mapName = updateSecretOf(labelValues,secretValues, deleteKeys, nameSpace);
+        } else if (type == K8sObjects.CONFIG_MAP) {
+            mapName =  updateConfigMapOf(labelValues,secretValues, deleteKeys, nameSpace);
+        }else {
+            throw new SsrException("map type not found, it should be either secret or configmap");
+        }
+
+        boolean delPodStatus = deletePod(labelValues, nameSpace);
+
+        if (!delPodStatus) {
+            LOG.error("Failed to delete Pod after updating Secret {}", mapName.orElse("unknown"));
+        }
+
+        return delPodStatus;
+    }
+
+
+    public Optional<String> updateConfigMapOf(
+            Tuple3<String, String, String> labelValues,
+            Map<String, String> newConfigValues,
+            List<String> deleteKeys,
             String nameSpace) {
 
-        var resourceName = labelValues.getItem1()
-                .concat("-").concat(labelValues.getItem2()).concat("-")
-                .concat(labelValues.getItem3());
+        // Construct resource name
+        String resourceName = String.format("%s-%s-%s",
+                labelValues.getItem1(),
+                labelValues.getItem2(),
+                labelValues.getItem3());
+
         var configMapResource = client.configMaps()
                 .inNamespace(nameSpace(nameSpace)).withName(resourceName);
         var configMap = configMapResource.get();
 
+        // Check if the ConfigMap exists
+        if (configMap == null) {
+            LOG.error("ConfigMap with name {} not found", resourceName);
+            return Optional.empty();
+        }
+
         LOG.info("Found configMap with name  {}", configMap.getMetadata().getName());
-
         var configMapData = configMap.getData();
-        configMapData.putAll(configValues);
 
-        LOG.info("New Configmap data is {}", configMapData);
-
+        configMapData.putAll(newConfigValues);
+        Optional.ofNullable(deleteKeys).ifPresent(keys -> keys.forEach(configMapData::remove));
         configMap.setData(configMapData);
 
         var outcome = configMapResource.patch(configMap);
 
-        var delPodStatus = deletePod(labelValues, nameSpace);
+        if(outcome == null){
+            LOG.error("Failed to update ConfigMap {}", resourceName);
+            return Optional.empty();
+        }
 
-        return Objects.nonNull(outcome) && delPodStatus;
+        return Optional.of(resourceName);
+
     }
 
-    public boolean updateSecretOf(Tuple3<String, String, String> labelValues, Map<String, String> secretValues,
-            String nameSpace) {
+    public Optional<String> updateSecretOf(Tuple3<String, String, String> labelValues,
+                                  Map<String, String> newSecretValues, List<String> deleteKeys,
+                                  String nameSpace) {
+        // Construct resource name
+        String resourceName = String.format("%s-%s-%s-app-sec",
+                labelValues.getItem1(),
+                labelValues.getItem2(),
+                labelValues.getItem3());
 
-        var resourceName = labelValues.getItem1()
-                .concat("-").concat(labelValues.getItem2()).concat("-")
-                .concat(labelValues.getItem3()).concat("-app-sec");
-        var secretResource = client.secrets()
-                .inNamespace(nameSpace(nameSpace)).withName(resourceName);
+        var secretResource = client.secrets().inNamespace(nameSpace).withName(resourceName);
         var secret = secretResource.get();
+
+        // Check if the secret exists
+        if (secret == null) {
+            LOG.error("Secret with name {} not found", resourceName);
+            return Optional.empty();
+        }
 
         LOG.info("Found Secret with name  {}", secret.getMetadata().getName());
 
         var secretData = secret.getData();
 
-        // Encoding all values to base64 before updating the hashmap is mandatory
-        secretValues.replaceAll((key, value) -> Base64.getEncoder().encodeToString(value.getBytes()));
+        // Encoding all values to base64 as Kubernetes secrets require this
+        newSecretValues.replaceAll((key, value) -> Base64.getEncoder().encodeToString(value.getBytes()));
 
-        secretData.putAll(secretValues);
-
+        secretData.putAll(newSecretValues);
+        Optional.ofNullable(deleteKeys).ifPresent(keys -> keys.forEach(secretData::remove));
         secret.setData(secretData);
 
         var outcome = secretResource.patch(secret);
 
-        var delPodStatus = deletePod(labelValues, nameSpace);
+        if (outcome == null) {
+            LOG.error("Failed to update Secret {}", resourceName);
+            return Optional.empty();
+        }
 
-        return Objects.nonNull(outcome) && delPodStatus;
+        return Optional.of(resourceName);
     }
 
     private boolean deletePod(Tuple3<String, String, String> labelValues, String nameSpace) {

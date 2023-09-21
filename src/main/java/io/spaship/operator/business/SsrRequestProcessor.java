@@ -5,7 +5,9 @@ import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.smallrye.mutiny.tuples.Tuple3;
 import io.spaship.operator.exception.SsrException;
 import io.spaship.operator.service.k8s.SsrResourceProvisioner;
+import io.spaship.operator.type.K8sObjects;
 import io.spaship.operator.type.SsrResourceDetails;
+import io.spaship.operator.type.UpdateConfigOrSecretRequest;
 import io.spaship.operator.util.BuildConfigYamlModifier;
 import io.vertx.core.json.JsonObject;
 
@@ -50,12 +52,12 @@ public class SsrRequestProcessor {
         .map(this::delete);
     }
 
-    public Uni<Optional<JsonObject>> processConfigUpdateRequest(SsrResourceDetails resourceDetails) {
-        return Uni.createFrom().item(() -> resourceDetails).emitOn(executor)
+    public Uni<Optional<JsonObject>> processConfigUpdateRequest(UpdateConfigOrSecretRequest request) {
+        return Uni.createFrom().item(() -> request).emitOn(executor)
                 .map(this::updateConfigMap);
     }
-    public Uni<Optional<JsonObject>> processSecretUpdateRequest(SsrResourceDetails resourceDetails) {
-        return Uni.createFrom().item(() -> resourceDetails).emitOn(executor)
+    public Uni<Optional<JsonObject>> processSecretUpdateRequest(UpdateConfigOrSecretRequest request) {
+        return Uni.createFrom().item(() -> request).emitOn(executor)
                 .map(this::updateSecret);
     }
 
@@ -143,30 +145,32 @@ public class SsrRequestProcessor {
         throw new SsrException("failed to delete resouce: ".concat(resourceDetails.toString()));
     }
 
-    private Optional<JsonObject> updateConfigMap(SsrResourceDetails resourceDetails) {
-        var labels =  Tuple3.of(resourceDetails.website(),
-                resourceDetails.app(),resourceDetails.environment());
-        var updateMapStatus = resourceProvisioner.updateConfigMapOf(labels,
-                resourceDetails.configMap(),resourceDetails.nameSpace());
+    private Optional<JsonObject> updateConfigMap(UpdateConfigOrSecretRequest request) {
+        var labels =  Tuple3.of(request.ssrResourceDetails().website(),
+                request.ssrResourceDetails().app(),request.ssrResourceDetails().environment());
+        var updateMapStatus = resourceProvisioner.updateAppConfigAndResetPod(labels,
+                request.ssrResourceDetails().configMap(),request.keysToDelete(),
+                request.ssrResourceDetails().nameSpace(),K8sObjects.CONFIG_MAP);
         if(updateMapStatus){
             var response = new JsonObject().put(STATUS, "updated");
             return Optional.of(response);
         }
             
-        throw new SsrException("failed to update resouce: ".concat(resourceDetails.toString()));
+        throw new SsrException("failed to update resouce: ".concat(request.ssrResourceDetails().toString()));
     }
 
-    private Optional<JsonObject> updateSecret(SsrResourceDetails resourceDetails) {
-        var labels =  Tuple3.of(resourceDetails.website(),
-                resourceDetails.app(),resourceDetails.environment());
-        var updateMapStatus = resourceProvisioner.updateSecretOf(labels,
-                resourceDetails.secretMap(),resourceDetails.nameSpace());
+    private Optional<JsonObject> updateSecret(UpdateConfigOrSecretRequest request) {
+        var labels =  Tuple3.of(request.ssrResourceDetails().website(),
+                request.ssrResourceDetails().app(),request.ssrResourceDetails().environment());
+        var updateMapStatus = resourceProvisioner.updateAppConfigAndResetPod(labels,
+                request.ssrResourceDetails().secretMap(),request.keysToDelete(),
+                request.ssrResourceDetails().nameSpace(), K8sObjects.SECRET_MAP);
         if(updateMapStatus){
             var response = new JsonObject().put(STATUS, "updated");
             return Optional.of(response);
         }
 
-        throw new SsrException("failed to update resouce: ".concat(resourceDetails.toString()));
+        throw new SsrException("failed to update resouce: ".concat(request.ssrResourceDetails().toString()));
     }
 
 

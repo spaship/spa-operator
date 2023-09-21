@@ -6,6 +6,7 @@ import io.quarkus.vertx.web.RoutingExchange;
 import io.smallrye.mutiny.Uni;
 import io.spaship.operator.business.SsrRequestProcessor;
 import io.spaship.operator.type.SsrResourceDetails;
+import io.spaship.operator.type.UpdateConfigOrSecretRequest;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
@@ -51,13 +52,13 @@ public class SsrRoute {
 
     @Route(path = "/config", methods = Route.HttpMethod.POST)
     Uni<Optional<JsonObject>> updateConfig(RoutingContext rc) {
-        var reqBody = rc.body().asPojo(SsrResourceDetails.class);
+        var reqBody = rc.body().asPojo(UpdateConfigOrSecretRequest.class);
         return requestProcessor.processConfigUpdateRequest(reqBody);
     }
 
     @Route(path = "/secret", methods = Route.HttpMethod.POST)
     Uni<Optional<JsonObject>> updateSecret(RoutingContext rc) {
-        var reqBody = rc.body().asPojo(SsrResourceDetails.class);
+        var reqBody = rc.body().asPojo(UpdateConfigOrSecretRequest.class);
         return requestProcessor.processSecretUpdateRequest(reqBody);
     }
 
