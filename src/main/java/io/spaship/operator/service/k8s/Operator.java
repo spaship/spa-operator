@@ -81,10 +81,12 @@ public class Operator implements Operations {
     if (!envExists)
       createNewEnvironment(environment);
     String sideCarSvcUrl = environmentSidecarUrl(environment);
+    // todo mutability is not good, we should not change the state of the object
     environment.setOperationPerformed(true);
 
     ReUsableItems.releaseLock(environment.getIdentification());
     LOG.debug("\n");
+    // todo change the status code type to enum instead of int for better readability
     return OperationResponse.builder().environment(environment).sideCarServiceUrl(sideCarSvcUrl)
         .originatedFrom(this.getClass().toString()).status(envExists ? 2 : 1).build();
   }
