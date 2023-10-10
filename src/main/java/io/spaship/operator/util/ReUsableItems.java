@@ -98,4 +98,18 @@ public class ReUsableItems {
     return "/openshift/ssr-deployment-template.yaml";
   }
 
+
+  @SafeVarargs
+  public static <T> void checkNull(T... objects) {
+    if (Objects.isNull(objects)) {
+      throw new NullPointerException("The objects parameter itself is null");
+    }
+    for (int i = 0; i < objects.length; i++) {
+      T entry = objects[i];
+      if (Objects.isNull(entry)) {
+        throw new NullPointerException("Object at index " + i + " is null");
+      }
+    }
+  }
+
 }
