@@ -25,14 +25,14 @@ public class CommandExecutionController {
     }
 
     @POST
-    @Path("/test-exception")
+    @Path("/symlink")
     @Produces("text/json")
     @Consumes(MediaType.APPLICATION_JSON)
     public  String createSymlink(CommandExecForm form) {
         LOG.debug("form content is as follows {}", form);
         Tuple2<String, String> sourceTargetTuple = Tuple2.of(form.metadata().get("source"),
                 form.metadata().get("target"));
-        exec.createSymlink(form.environment(), sourceTargetTuple);
-        return "{\"status\":\"success\"}";
+        boolean isCreated = exec.createSymlink(form.environment(), sourceTargetTuple);
+        return "{\"created\":"+isCreated+"}";
     }
 }

@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.client.dsl.ExecListener;
 import io.fabric8.kubernetes.client.dsl.ExecWatch;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.smallrye.mutiny.tuples.Tuple2;
+import io.spaship.operator.exception.CommandExecutionException;
 import io.spaship.operator.type.ApplicationConstants;
 import io.spaship.operator.type.Environment;
 import io.spaship.operator.util.ReUsableItems;
@@ -23,8 +24,8 @@ public class CommandExecutionService {
 
 
     // todo :scope of improvement: read these two vars from the config map
-    private static final String CONTAINER_NAME = "httpd";
-    private static final String BASE_HTTP_DIR = "/var/www/http";
+    private static final String CONTAINER_NAME = "httpd-server";
+    private static final String BASE_HTTP_DIR = "/var/www/html";
 
 
     private final OpenShiftClient ocClient;
@@ -35,9 +36,16 @@ public class CommandExecutionService {
     }
 
 
-    public void createSymlink(Environment environment,Tuple2<String, String> sourceTargetTuple) {
+    public boolean createSymlink(Environment environment,Tuple2<String, String> sourceTargetTuple) {
+        boolean success = false;
         ReUsableItems.checkNull(environment,sourceTargetTuple);
-        execute(podLabelFrom(environment), environment.getNameSpace(), sourceTargetTuple);
+        try{
+            execute(podLabelFrom(environment), environment.getNameSpace(), sourceTargetTuple);
+            success = true;
+        }catch(Exception e){
+            LOG.error("failed to create symlink",e);
+        }
+        return success;
     }
 
     private Map<String,String> podLabelFrom(Environment environment) {
@@ -59,21 +67,27 @@ public class CommandExecutionService {
         // TODO :scope of improvement: add support for multiple commands
         var command  = symbolicLinkCommand(sourceTargetTuple.getItem1(), sourceTargetTuple.getItem2());
 
-        pod.forEach(p -> executeCommandInContainer(p, command));
+        pod.forEach(p -> {
+            try {
+                executeCommandInContainer(p, command);
+            } catch (CommandExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
    // todo :must do: 1. check both source and destination exists 2. Validate and sanitize the
    //  command
-    private String symbolicLinkCommand(String source, String target) {
+    private String[] symbolicLinkCommand(String source, String target) {
         ReUsableItems.checkNull(source,target);
         source = (BASE_HTTP_DIR.concat("/").concat(source)).toLowerCase();
         target = (BASE_HTTP_DIR.concat("/").concat(target)).toLowerCase();
         LOG.debug("creating a symlink of source {} to {}",source,target);
-        LOG.debug("command to be executed ln -s {} {}",source,target);
-        return "ln -s " + source + " " + target;
+        LOG.debug("command to be executed [ln] [-s] [{}] [{}]",source,target);
+        return new String[]{"ln", "-s", source, target};
     }
 
-    private void executeCommandInContainer(Pod httpdPod, String command) {
+    private  void executeCommandInContainer(Pod httpdPod, String[] command) throws CommandExecutionException {
         ReUsableItems.checkNull(httpdPod,command);
         CountDownLatch latch = new CountDownLatch(1);
         try (ExecWatch ignored = ocClient.pods().inNamespace(httpdPod.getMetadata().getNamespace())
@@ -108,7 +122,7 @@ public class CommandExecutionService {
                 }).exec(command)) {
             latch.await();
         } catch (Exception e) {
-            throw new RuntimeException("Error while executing command in container", e);
+            throw new CommandExecutionException("Error while executing command in container", e);
         }
     }
 }
