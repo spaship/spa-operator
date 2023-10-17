@@ -80,8 +80,8 @@ public class CommandExecutionService {
    //  command
     private String[] symbolicLinkCommand(String source, String target) {
         ReUsableItems.checkNull(source,target);
-        source = (BASE_HTTP_DIR.concat("/").concat(source)).toLowerCase();
-        target = (BASE_HTTP_DIR.concat("/").concat(target)).toLowerCase();
+        source = (BASE_HTTP_DIR.concat("/").concat(source));
+        target = (BASE_HTTP_DIR.concat("/").concat(target));
         LOG.debug("creating a symlink of source {} to {}",source,target);
         LOG.debug("command to be executed [ln] [-s] [{}] [{}]",source,target);
         return new String[]{"ln", "-s", source, target};
