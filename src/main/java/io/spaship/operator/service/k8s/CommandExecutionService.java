@@ -95,34 +95,44 @@ public class CommandExecutionService {
                 .inContainer(CONTAINER_NAME).readingInput(System.in). //TODO replace the deprecated method
                 // with the new method
                 writingOutput(System.out).writingError(System.err).withTTY()
-                .usingListener(new ExecListener() {
-                    @Override
-                    public void onOpen() {
-                        LOG.debug("Executing command in container");
-                    }
-
-                    @Override
-                    public void onClose(int code, String reason) {
-                        LOG.debug("closing the listener");
-                        latch.countDown();
-                    }
-
-                    @SneakyThrows
-                    @Override
-                    public void onFailure(Throwable t, Response failureResponse) {
-                        LOG.error("Failed to execute command in container due to {}",failureResponse.body());
-                        latch.countDown();
-                    }
-
-                    @Override
-                    public void onExit(int code, Status status) {
-                        LOG.error("Command executed in container code {} reason {}",code,status);
-                        latch.countDown();
-                    }
-                }).exec(command)) {
+                .usingListener(newInstance(latch)).exec(command)) {
             latch.await();
         } catch (Exception e) {
+            latch.countDown();
             throw new CommandExecutionException("Error while executing command in container", e);
         }
+    }
+
+    private static ExecListener newInstance(CountDownLatch latch) {
+        ReUsableItems.checkNull(latch);
+        return new ExecListener() {
+            @Override
+            public void onOpen() {
+                LOG.debug("Executing command in container");
+            }
+
+            @Override
+            public void onClose(int code, String reason) {
+                LOG.debug("closing the listener");
+                latch.countDown();
+            }
+
+            @SneakyThrows
+            @Override
+            public void onFailure(Throwable t, Response failureResponse) {
+                LOG.error("Failed to execute command in container due to {}", failureResponse.body());
+                latch.countDown();
+            }
+
+            @Override
+            public void onExit(int code, Status status) {
+                LOG.debug("Exit code {} and status {}", code, status);
+                if (code != 0) {
+                    LOG.error("Command executed in container code {} reason {}", code, status);
+                    throw new RuntimeException("Command execution ended with non zero exit code");
+                }
+                latch.countDown();
+            }
+        };
     }
 }
