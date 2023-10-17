@@ -212,6 +212,8 @@ public class SPAUploadHandler {
   }
 
 
+
+
   private OperationResponse createOrUpdateSPA(OperationResponse opsResponse) {
     if (opsResponse.getStatus() == -1 || opsResponse.getStatus() == 0) {
       LOG.debug("no operation performed");
@@ -241,7 +243,7 @@ public class SPAUploadHandler {
     if (env.isExcludeFromEnvironment() && k8sOperator.environmentExists(env)) {
       LOG.debug("environment exists but env exclusion enforced, " +
         "environment details are as follows {}", env);
-      return k8sOperator.removeSPA(env);
+      return appDeleteOps(env);
     }
 
     if (env.isExcludeFromEnvironment()) {
@@ -252,6 +254,13 @@ public class SPAUploadHandler {
     }
 
     return k8sOperator.createOrUpdateEnvironment(env);
+  }
+
+  private OperationResponse appDeleteOps(Environment environment) {
+    environment.setOperationPerformed(false);
+    var sidecarUrl =  k8sOperator.environmentSidecarUrl(environment);
+    return OperationResponse.builder().environment(environment).sideCarServiceUrl(sidecarUrl)
+            .originatedFrom(this.getClass().toString()).status(2).build();
   }
 
 }
