@@ -122,6 +122,7 @@ public class CommandExecutionService {
             public void onFailure(Throwable t, Response failureResponse) {
                 LOG.error("Failed to execute command in container due to {}", failureResponse.body());
                 latch.countDown();
+                throw new RuntimeException("Failed to execute command in container", t);
             }
 
             @Override
