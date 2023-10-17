@@ -146,7 +146,7 @@ objects:
           containers:
             # Main container to serve data
             - name: httpd-server
-              image: "quay.io/arbhatta/httpd:mdev"
+              image: "${IMAGE_HTTPD}:${IMAGE_HTTPD_VERSION}"
               imagePullPolicy: IfNotPresent
               resources:
                 requests:
