@@ -13,6 +13,7 @@ import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.spaship.operator.business.EventManager;
 import io.spaship.operator.exception.ResourceNotFoundException;
 import io.spaship.operator.service.Operations;
+import io.spaship.operator.type.ApplicationConstants;
 import io.spaship.operator.type.Environment;
 import io.spaship.operator.type.EventStructure;
 import io.spaship.operator.type.OperationResponse;
@@ -37,10 +38,6 @@ import java.util.function.Consumer;
 @ApplicationScoped
 public class Operator implements Operations {
     private static final Logger LOG = LoggerFactory.getLogger(Operator.class);
-    private static final String MANAGED_BY = "managedBy";
-    private static final String WEBSITE = "website";
-    private static final String ENVIRONMENT = "environment";
-    private static final String SPASHIP = "spaship";
     private final OpenShiftClient ocClient;
     private final EventManager eventManager;
     private final String domain;
@@ -290,9 +287,9 @@ public class Operator implements Operations {
     }
 
     Map<String, String> searchCriteriaLabel(Environment environment) {
-        return Map.of(MANAGED_BY, SPASHIP,
-                WEBSITE, environment.getWebsiteName().toLowerCase(),
-                ENVIRONMENT, environment.getName().toLowerCase());
+        return Map.of(ApplicationConstants.MANAGED_BY, ApplicationConstants.SPASHIP,
+                ApplicationConstants.WEBSITE, environment.getWebsiteName().toLowerCase(),
+                ApplicationConstants.ENVIRONMENT, environment.getName().toLowerCase());
     }
 
     private OperationResponse applyDeleteResourceList(Environment environment, KubernetesList resourceList) {
@@ -349,9 +346,9 @@ public class Operator implements Operations {
         Objects.requireNonNull(environment.getWebsiteName(), "website name not found in env object");
         Objects.requireNonNull(environment.getNameSpace(), "website namespace not found in env object");
         Map<String, String> labels = Map.of(
-                MANAGED_BY, SPASHIP,
-                WEBSITE, environment.getWebsiteName(),
-                ENVIRONMENT, environment.getName());
+                ApplicationConstants.MANAGED_BY, ApplicationConstants.SPASHIP,
+                ApplicationConstants.WEBSITE, environment.getWebsiteName(),
+                ApplicationConstants.ENVIRONMENT, environment.getName());
         var pods = ocClient.pods()
                 .inNamespace(environment.getNameSpace()).withLabels(labels).list().getItems();
 
@@ -383,44 +380,44 @@ public class Operator implements Operations {
             if (item instanceof Service svc) {
                 LOG.debug("creating new Service in K8s, tracing = {}", tracing);
                 ocClient.services().inNamespace(nameSpace).createOrReplace(svc);
-                eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
-                        .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
+                eb.websiteName(item.getMetadata().getLabels().get(ApplicationConstants.WEBSITE))
+                        .environmentName(item.getMetadata().getLabels().get(ApplicationConstants.ENVIRONMENT))
                         .state("service created");
             }
             if (item instanceof Deployment dep) {
                 LOG.debug("creating new Deployment in K8s, tracing = {}", tracing);
                 ocClient.apps().deployments().inNamespace(nameSpace).createOrReplace(dep);
-                eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
-                        .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
+                eb.websiteName(item.getMetadata().getLabels().get(ApplicationConstants.WEBSITE))
+                        .environmentName(item.getMetadata().getLabels().get(ApplicationConstants.ENVIRONMENT))
                         .state("deployment created");
             }
             if (item instanceof StatefulSet sfs) {
                 LOG.debug("creating new Deployment in K8s, tracing = {}", tracing);
                 ocClient.apps().statefulSets().inNamespace(nameSpace).createOrReplace(sfs);
-                eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
-                        .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
+                eb.websiteName(item.getMetadata().getLabels().get(ApplicationConstants.WEBSITE))
+                        .environmentName(item.getMetadata().getLabels().get(ApplicationConstants.ENVIRONMENT))
                         .state("StatefulSet created");
 
             }
             if (item instanceof PersistentVolumeClaim pvc) {
                 LOG.debug("creating new pvc in K8s, tracing = {}", tracing);
                 ocClient.persistentVolumeClaims().inNamespace(nameSpace).createOrReplace(pvc);
-                eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
-                        .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
+                eb.websiteName(item.getMetadata().getLabels().get(ApplicationConstants.WEBSITE))
+                        .environmentName(item.getMetadata().getLabels().get(ApplicationConstants.ENVIRONMENT))
                         .state("pvc created");
             }
             if (item instanceof Route route) {
                 LOG.debug("creating new Route in K8s, tracing = {}", tracing);
                 ocClient.routes().inNamespace(nameSpace).createOrReplace(route);
-                eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
-                        .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
+                eb.websiteName(item.getMetadata().getLabels().get(ApplicationConstants.WEBSITE))
+                        .environmentName(item.getMetadata().getLabels().get(ApplicationConstants.ENVIRONMENT))
                         .state("route created");
             }
             if (item instanceof ConfigMap cm) {
                 LOG.debug("creating new ConfigMap in K8s, tracing = {}", tracing);
                 ocClient.configMaps().inNamespace(nameSpace).createOrReplace(cm);
-                eb.websiteName(item.getMetadata().getLabels().get(WEBSITE))
-                        .environmentName(item.getMetadata().getLabels().get(ENVIRONMENT))
+                eb.websiteName(item.getMetadata().getLabels().get(ApplicationConstants.WEBSITE))
+                        .environmentName(item.getMetadata().getLabels().get(ApplicationConstants.ENVIRONMENT))
                         .state("configmap created");
             }
             if (item instanceof Ingress ing) {
