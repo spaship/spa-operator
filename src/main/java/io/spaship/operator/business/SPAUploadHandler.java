@@ -3,15 +3,20 @@ package io.spaship.operator.business;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
+import io.spaship.operator.exception.ValidationException;
 import io.spaship.operator.exception.ZipFileProcessException;
 import io.spaship.operator.service.k8s.Operator;
 import io.spaship.operator.service.k8s.SideCarOperations;
 import io.spaship.operator.type.Environment;
 import io.spaship.operator.type.EventStructure;
+import io.spaship.operator.type.FormData;
 import io.spaship.operator.type.OperationResponse;
 import io.spaship.operator.type.SpashipMapping;
 import io.spaship.operator.util.ReUsableItems;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipFile;
 import org.apache.commons.io.IOUtils;
+import org.apache.poi.openxml4j.util.ZipSecureFile;
 import org.javatuples.Pair;
 import org.javatuples.Triplet;
 import org.slf4j.Logger;
@@ -24,11 +29,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.Executor;
+import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.UUID;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 @ApplicationScoped
 public class SPAUploadHandler {
@@ -78,8 +85,8 @@ public class SPAUploadHandler {
 
     File spaDistribution = new File(absoluteFilePath.toUri());
     assert spaDistribution.exists();
-    try (ZipFile zipFile = new ZipFile(spaDistribution.getAbsolutePath())) {
-      Enumeration<? extends ZipEntry> entries = zipFile.entries();
+    try (ZipSecureFile zipFile = new ZipSecureFile(spaDistribution.getAbsolutePath())) {
+      Enumeration<ZipArchiveEntry> entries = zipFile.getEntries();
       InputStream inputStream = readFromSpaMapping(zipFile, entries);
       Objects.requireNonNull(inputStream, ReUsableItems.getSpashipMappingFileName() + " not found");
       spaMapping = mappingFileToObject(inputStream);
@@ -168,10 +175,43 @@ public class SPAUploadHandler {
     return allEnvironments;
   }
 
+  public Pair<String, UUID> requestTagging(String param){
+    UUID processId = UUID.randomUUID();
+    return new Pair<>(param, processId);
+  }
+
+  public void sanity(FormData formData) {
+    if (!formData.isFileValid())
+      throw new ValidationException("invalid file type");
+
+    String description = formData.description;
+    String fileName = formData.fileName();
+    Long fileSize = formData.fileSize();
+    String website = formData.website;
+    java.nio.file.Path path = formData.getfilePath();
+
+    if (Objects.isNull(description) || description.isEmpty() || description.isBlank()){
+      LOG.warn("description field value is not set");
+      description = String.valueOf(LocalDateTime.now());
+    }
+
+    Objects.requireNonNull(fileName, "file name not found");
+    Objects.requireNonNull(fileSize, "file size is not set");
+    Objects.requireNonNull(path, "no path found");
+    Objects.requireNonNull(website, "website attribute is not set");
+
+
+    if (website.isEmpty() || website.isBlank())
+      throw new ValidationException("website attribute is empty");
+
+    LOG.debug("FormData attributes after transformation  description {} , name is {} , size {}, location {} \n",
+      description, fileName, fileSize, path);
+    formData.description = description;
+  }
 
 //************************************************ Lambda inner Methods ************************************************
 
-  private InputStream readFromSpaMapping(ZipFile zipFile, Enumeration<? extends ZipEntry> entries) {
+  private InputStream readFromSpaMapping(ZipSecureFile zipFile, Enumeration<ZipArchiveEntry> entries) {
     LOG.debug("reading from .spaship input stream");
     return Collections
       .list(entries)
