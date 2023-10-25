@@ -55,7 +55,6 @@ public class SPAUploadHandler {
     this.eventManager = eventManager;
   }
 
-
   //[0]file-store-path[1]ops-tracing-id[2]website-name
   public void handleFileUpload(Triplet<Path, Pair<String, UUID>, String> input) {
     LOG.debug("     deployment process initiated with details {}", input);
@@ -250,9 +249,6 @@ public class SPAUploadHandler {
     LOG.debug("Constructed environment object is {}", environment);
     return environment;
   }
-
-
-
 
   private OperationResponse createOrUpdateSPA(OperationResponse opsResponse) {
     if (opsResponse.getStatus() == -1 || opsResponse.getStatus() == 0) {
