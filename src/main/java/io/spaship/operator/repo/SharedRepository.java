@@ -15,7 +15,6 @@ public class SharedRepository {
   private SharedRepository() {
   }
 
-
   public static boolean enqueue(String environmentName, Pair<UUID, LocalDateTime> meta) {
     if (isQueued(environmentName)) {
       LOG.debug("entry {} already exists", environmentName);
