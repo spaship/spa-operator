@@ -27,7 +27,7 @@ parameters:
     value: "1.3.6"
     required: false
   - name: "IMAGE_API_VERSION"
-    value: "v1.5.0"
+    value: "fix-pod-vulnerability"
     required: false
   - name: "DOMAIN"
     required: true
