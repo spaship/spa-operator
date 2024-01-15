@@ -83,8 +83,9 @@ public class CommandExecutionService {
         source = (BASE_HTTP_DIR.concat("/").concat(source));
         target = (BASE_HTTP_DIR.concat("/").concat(target));
         LOG.debug("creating a symlink of source {} to {}",source,target);
-        LOG.debug("command to be executed [ln] [-s] [{}] [{}]",source,target);
-        return new String[]{"ln", "-s", source, target};
+        String command = "rm -f " + target + " && ln -s " + source + " " + target;
+        LOG.debug("command to be executed {}",command);
+        return new String[]{"sh", "-c", command};
     }
 
     private  void executeCommandInContainer(Pod httpdPod, String[] command) throws CommandExecutionException {
