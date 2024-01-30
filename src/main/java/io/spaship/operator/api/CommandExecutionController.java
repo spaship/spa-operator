@@ -26,10 +26,10 @@ public class CommandExecutionController {
     }
 
     @POST
-    @Path("/symlink")
+    @Path("/command")
     @Produces("text/json")
     @Consumes(MediaType.APPLICATION_JSON)
-    public  CommandExecutionOutput createSymlink(CommandExecForm form) {
+    public  CommandExecutionOutput execCommand(CommandExecForm form) {
         LOG.debug("form content is as follows {}", form);
         Tuple2<String, String> sourceTargetTuple = Tuple2.of(form.metadata().get("source"),
                 form.metadata().get("target"));
