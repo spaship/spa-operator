@@ -4,6 +4,7 @@ import io.quarkus.security.Authenticated;
 import io.smallrye.mutiny.tuples.Tuple2;
 import io.spaship.operator.service.k8s.CommandExecutionService;
 import io.spaship.operator.type.CommandExecForm;
+import io.spaship.operator.type.CommandExecutionOutput;
 import io.spaship.operator.type.Environment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,11 +29,10 @@ public class CommandExecutionController {
     @Path("/symlink")
     @Produces("text/json")
     @Consumes(MediaType.APPLICATION_JSON)
-    public  String createSymlink(CommandExecForm form) {
+    public  CommandExecutionOutput createSymlink(CommandExecForm form) {
         LOG.debug("form content is as follows {}", form);
         Tuple2<String, String> sourceTargetTuple = Tuple2.of(form.metadata().get("source"),
                 form.metadata().get("target"));
-        boolean isCreated = exec.createSymlink(form.environment(), sourceTargetTuple);
-        return "{\"created\":"+isCreated+"}";
+        return exec.applyCommand(form.environment(), sourceTargetTuple, form.commandType());
     }
 }
