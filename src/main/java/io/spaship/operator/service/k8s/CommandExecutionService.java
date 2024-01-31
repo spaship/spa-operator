@@ -175,12 +175,25 @@ public class CommandExecutionService {
         var location = sanitizeInput(BASE_HTTP_DIR.concat("/").concat(targetLocation));
         var dirCommand = buildExistenceCheckCommand("d", location);
         var fileCommand = buildExistenceCheckCommand("f", location);
-        var dirOutput = executeCommandInContainer(targetPod, dirCommand);
-        var fileOutput = executeCommandInContainer(targetPod, fileCommand);
-        boolean dirExists =
-                "dir ".concat(CommandExecutionEnums.Existence.EXISTS.toString()).equalsIgnoreCase(dirOutput);
-        boolean fileExists =
-                "file ".concat(CommandExecutionEnums.Existence.EXISTS.toString()).equalsIgnoreCase(fileOutput);
+        var dirOutput = executeCommandInContainer(targetPod, dirCommand).trim();
+        var fileOutput = executeCommandInContainer(targetPod, fileCommand).trim();
+        LOG.debug("dirOutput is {} and fileOutput is {}", dirOutput, fileOutput);
+
+
+        String fileExistsString = ("file ".concat(CommandExecutionEnums.Existence.EXISTS.toString())).trim();
+        String dirExistsString = ("dir ".concat(CommandExecutionEnums.Existence.EXISTS.toString())).trim();
+
+        LOG.debug("comparing condition for fileExists is {} comparing with {}",
+                fileExistsString, fileOutput);
+
+        LOG.debug("comparing condition for dirExists is {} comparing with {}",
+                dirExistsString, dirOutput);
+
+        boolean dirExists = dirExistsString.equals(dirOutput);
+        LOG.debug("dirExists expression boolean eval is  {}", dirExists);
+        boolean fileExists = fileExistsString.equals(fileOutput);
+        LOG.debug("fileExists expression boolean eval is  {}", fileExists);
+
         if (dirExists) {
             return new CommandExecutionOutput(targetPod.getMetadata().getName()
                     , "dir ".concat(CommandExecutionEnums.Existence.EXISTS.toString())
@@ -201,7 +214,7 @@ public class CommandExecutionService {
      * The command is then executed in the Pod.
      * The result of the command execution is encapsulated in a CommandExecutionOutput object and returned.
      *
-     * @param targetPod the Pod in which to create the symlink
+     * @param targetPod         the Pod in which to create the symlink
      * @param sourceTargetTuple a tuple containing the source and target details for the symlink
      * @return a CommandExecutionOutput encapsulates the name of the Pod and the console output of the command
      * @throws RuntimeException if there is an error executing the command in the Pod
@@ -226,7 +239,7 @@ public class CommandExecutionService {
      * The output of the command is then used to determine the type of the target.
      *
      * @param targetPod the Pod in which to check the target
-     * @param target the target to check
+     * @param target    the target to check
      * @return the type of the target as a CommandExecutionEnums.TargetType enum value
      * @throws CommandExecutionException if there is an error executing the command in the Pod
      */
@@ -237,7 +250,7 @@ public class CommandExecutionService {
                 "; elif [ -f " + target + " ]; then echo " + CommandExecutionEnums.TargetType.FILE +
                 "; else echo " + CommandExecutionEnums.TargetType.UNKNOWN + "; fi"};
         LOG.debug("command to be executed for checking target type is {}", Arrays.toString(command));
-        var output = executeCommandInContainer(targetPod, command);
+        var output = executeCommandInContainer(targetPod, command).trim();
         LOG.debug("output of the command is {}", output);
         return CommandExecutionEnums.TargetType.valueOf(output.trim().toUpperCase());
     }
