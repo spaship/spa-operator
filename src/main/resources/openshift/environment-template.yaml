@@ -14,9 +14,6 @@ parameters:
   - name: "WEBSITE_VERSION"
     description: "Version of website"
     required: true
-  #  - name: "TRACE_ID"
-  #    description: "tracing UUID from operator during creation"
-  #    required: true
   - name: "IMAGE_HTTPD"
     value: "quay.io/spaship/httpd"
     required: false
@@ -76,12 +73,10 @@ objects:
         website: ${WEBSITE}
         managedBy: spaship
         environment: ${ENV}
-        #tracing: ${TRACE_ID}
         websiteVersion: ${WEBSITE_VERSION}
         app.kubernetes.io/managed-by: spaship
         paas.redhat.com/appcode: ${CMDB_CODE}
     spec:
-      #      type: NodePort
       ports:
         # Expose main container
         - port: 80
@@ -121,7 +116,6 @@ objects:
         website: ${WEBSITE}
         managedBy: spaship
         environment: ${ENV}
-        #tracing: ${TRACE_ID}
         websiteVersion: ${WEBSITE_VERSION}
         app.kubernetes.io/managed-by: spaship
         app.kubernetes.io/part-of: ${WEBSITE}
@@ -154,7 +148,7 @@ objects:
                   memory: 100Mi
                 limits:
                   cpu: 500m
-                  memory: 250Mi
+                  memory: 384Mi
               ports:
                 - containerPort: 8080
               volumeMounts:
@@ -201,25 +195,6 @@ objects:
             - name: data-${WEBSITE}-${ENV}-${APP_INSTANCE_PREFIX}
               persistentVolumeClaim:
                 claimName: data-${WEBSITE}-${ENV}-${APP_INSTANCE_PREFIX}
-
-          #volumes:
-          #  - name: data
-          #    emptyDir: { }
-  #      volumeClaimTemplates:
-  #        - metadata:
-  #            annotations:
-  #              kubernetes.io/reclaimPolicy: Delete
-  #            labels:
-  #              paas.redhat.com/appcode: SPAS-001
-  #              app.kubernetes.io/managed-by: spaship
-  #            name: data-${WEBSITE}-${APP_INSTANCE_PREFIX}
-  #          spec:
-  #            accessModes: [ "ReadWriteOnce" ]
-  #            storageClassName: "${STORAGE_CLASS}"
-  #            resources:
-  #              requests:
-  #                storage: 1Gi
-
   - kind: Ingress
     apiVersion: networking.k8s.io/v1
     metadata:
@@ -257,7 +232,6 @@ objects:
       forwarded_host: ""
       target: http://svc-${APP_INSTANCE_PREFIX}-${WEBSITE}-${ENV}
       webroot: '/var/www/html'
-
   - kind: Service
     apiVersion: v1
     metadata:
@@ -279,7 +253,6 @@ objects:
         website: ${WEBSITE}
         environment: ${ENV}
         type: router
-
   - kind: Deployment
     apiVersion: apps/v1
     metadata:
@@ -321,8 +294,8 @@ objects:
                   cpu: 25m
                   memory: 128Mi
                 limits:
-                  cpu: 100m
-                  memory: 256Mi
+                  cpu: 300m
+                  memory: 384Mi
               ports:
                 - containerPort: 8080
                   protocol: TCP
@@ -342,7 +315,6 @@ objects:
             - name: data-${WEBSITE}-${ENV}-${APP_INSTANCE_PREFIX}
               persistentVolumeClaim:
                 claimName: data-${WEBSITE}-${ENV}-${APP_INSTANCE_PREFIX}
-
   - kind: Route
     apiVersion: route.openshift.io/v1
     metadata:
@@ -364,3 +336,51 @@ objects:
         termination: edge
         insecureEdgeTerminationPolicy: Redirect
       wildcardPolicy: None
+  - kind: HorizontalPodAutoscaler
+    apiVersion: autoscaling/v2
+    metadata:
+      name: hpa-${WEBSITE}-${ENV}
+    spec:
+      scaleTargetRef:
+        apiVersion: apps/v1
+        kind: Deployment
+        name: ${WEBSITE}-${ENV}
+      minReplicas: 1
+      maxReplicas: 4
+      metrics:
+        - type: Resource
+          resource:
+            name: cpu
+            target:
+              type: Utilization
+              averageUtilization: 80
+        - type: Resource
+          resource:
+            name: memory
+            target:
+              type: Utilization
+              averageUtilization: 75
+  - kind: HorizontalPodAutoscaler
+    apiVersion: autoscaling/v2
+    metadata:
+      name: hpa-router-${WEBSITE}-${ENV}
+    spec:
+      scaleTargetRef:
+        apiVersion: apps/v1
+        kind: Deployment
+        name: router-${WEBSITE}-${ENV}
+      minReplicas: 1
+      maxReplicas: 4
+      metrics:
+        - type: Resource
+          resource:
+            name: cpu
+            target:
+              type: Utilization
+              averageUtilization: 80
+        - type: Resource
+          resource:
+            name: memory
+            target:
+              type: Utilization
+              averageUtilization: 75

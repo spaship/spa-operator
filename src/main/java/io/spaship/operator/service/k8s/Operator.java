@@ -3,6 +3,7 @@ package io.spaship.operator.service.k8s;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.StatefulSet;
+import io.fabric8.kubernetes.api.model.autoscaling.v2.HorizontalPodAutoscaler;
 import io.fabric8.kubernetes.api.model.networking.v1.Ingress;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import io.fabric8.kubernetes.client.readiness.Readiness;
@@ -386,14 +387,14 @@ public class Operator implements Operations {
             }
             if (item instanceof Deployment dep) {
                 LOG.debug("creating new Deployment in K8s, tracing = {}", tracing);
-                ocClient.apps().deployments().inNamespace(nameSpace).createOrReplace(dep);
+                ocClient.apps().deployments().inNamespace(nameSpace).resource(dep).createOrReplace();
                 eb.websiteName(item.getMetadata().getLabels().get(ApplicationConstants.WEBSITE))
                         .environmentName(item.getMetadata().getLabels().get(ApplicationConstants.ENVIRONMENT))
                         .state("deployment created");
             }
             if (item instanceof StatefulSet sfs) {
                 LOG.debug("creating new Deployment in K8s, tracing = {}", tracing);
-                ocClient.apps().statefulSets().inNamespace(nameSpace).createOrReplace(sfs);
+                ocClient.apps().statefulSets().inNamespace(nameSpace).resource(sfs).createOrReplace();
                 eb.websiteName(item.getMetadata().getLabels().get(ApplicationConstants.WEBSITE))
                         .environmentName(item.getMetadata().getLabels().get(ApplicationConstants.ENVIRONMENT))
                         .state("StatefulSet created");
@@ -401,28 +402,33 @@ public class Operator implements Operations {
             }
             if (item instanceof PersistentVolumeClaim pvc) {
                 LOG.debug("creating new pvc in K8s, tracing = {}", tracing);
-                ocClient.persistentVolumeClaims().inNamespace(nameSpace).createOrReplace(pvc);
+                ocClient.persistentVolumeClaims().inNamespace(nameSpace).resource(pvc).createOrReplace();
                 eb.websiteName(item.getMetadata().getLabels().get(ApplicationConstants.WEBSITE))
                         .environmentName(item.getMetadata().getLabels().get(ApplicationConstants.ENVIRONMENT))
                         .state("pvc created");
             }
             if (item instanceof Route route) {
                 LOG.debug("creating new Route in K8s, tracing = {}", tracing);
-                ocClient.routes().inNamespace(nameSpace).createOrReplace(route);
+                ocClient.routes().inNamespace(nameSpace).resource(route).createOrReplace();
                 eb.websiteName(item.getMetadata().getLabels().get(ApplicationConstants.WEBSITE))
                         .environmentName(item.getMetadata().getLabels().get(ApplicationConstants.ENVIRONMENT))
                         .state("route created");
             }
             if (item instanceof ConfigMap cm) {
                 LOG.debug("creating new ConfigMap in K8s, tracing = {}", tracing);
-                ocClient.configMaps().inNamespace(nameSpace).createOrReplace(cm);
+                ocClient.configMaps().inNamespace(nameSpace).resource(cm).createOrReplace();
                 eb.websiteName(item.getMetadata().getLabels().get(ApplicationConstants.WEBSITE))
                         .environmentName(item.getMetadata().getLabels().get(ApplicationConstants.ENVIRONMENT))
                         .state("configmap created");
             }
             if (item instanceof Ingress ing) {
                 LOG.debug("creating new Ingress controller in K8s, tracing = {}", tracing);
-                ocClient.network().v1().ingresses().inNamespace(nameSpace).createOrReplace(ing);
+                ocClient.network().v1().ingresses().inNamespace(nameSpace).resource(ing).createOrReplace();
+            }
+            if(item instanceof HorizontalPodAutoscaler hpa) {
+                LOG.debug("creating new HorizontalPodAutoscaler in K8s, tracing = {}", tracing);
+                ocClient.autoscaling().v2().horizontalPodAutoscalers().inNamespace(nameSpace).resource(hpa)
+                        .createOrReplace();
             }
 
             eventManager.queue(eb.build());
