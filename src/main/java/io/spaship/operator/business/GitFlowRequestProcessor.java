@@ -61,6 +61,13 @@ public class GitFlowRequestProcessor {
         return process.apply(meta);
     }
 
+    /**
+     * Creates a repository of functions for fetching logs based on the LogType.
+     * Each function in the repository takes a request object named FetchK8sInfoRequest as input and
+     * returns a list of log lines.The repository is a Map where the key is the LogType and the value
+     * is the corresponding function.
+     * @return A Map of LogType to Function, where each function fetches logs based on the FetchK8sInfoRequest input.
+     */
     Map<LogType,Function<FetchK8sInfoRequest,List<String>>>  logFunctionRepository(){
         boolean isRemoteBuild = ReUsableItems.isRemoteBuild();
         Map<LogType,Function<FetchK8sInfoRequest,List<String>>> readLogFunctionList= new EnumMap<>(LogType.class);
@@ -72,9 +79,15 @@ public class GitFlowRequestProcessor {
                     return readLog(provisioner.getBuildLog(input.objectName(),ns, input.upto(),isRemoteBuild));
                 });
         readLogFunctionList.put(LogType.DEPLOYMENT,
-                input -> readLog(provisioner.getDeploymentLog(input.objectName(), input.ns(), input.upto())));
+                input -> readLog(provisioner.getDeploymentLog(input.objectName(), input.ns(),
+                        input.upto(),false)));
+        readLogFunctionList.put(LogType.HTTP_DEPLOYMENT,
+                input -> readLog(provisioner.getDeploymentLog(input.objectName(), input.ns(),
+                        input.upto(),true)));
         readLogFunctionList.put(LogType.POD,
-                input -> readLog(provisioner.getPodLog(input.objectName(), input.ns(), input.upto())));
+                input -> readLog(provisioner.getLog(input.objectName(), input.ns(), input.upto(),false)));
+        readLogFunctionList.put(LogType.HTTP_POD,
+                input -> readLog(provisioner.getLog(input.objectName(), input.ns(), input.upto(),true)));
         return readLogFunctionList;
     }
 
@@ -410,6 +423,6 @@ public class GitFlowRequestProcessor {
         STUCK,IN_PROGRESS,COMPLETED,FAILED,CHECK_OS_CONSOLE,NOT_FOUND
     }
     public enum LogType{
-        BUILD,DEPLOYMENT,POD
+        BUILD,DEPLOYMENT,POD,HTTP_POD,HTTP_DEPLOYMENT
     }
 }

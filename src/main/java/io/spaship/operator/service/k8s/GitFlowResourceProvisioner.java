@@ -14,6 +14,7 @@ import javax.inject.Named;
 import java.io.InputStream;
 import java.io.Reader;
 import java.util.*;
+import java.util.function.Function;
 
 
 @ApplicationScoped
@@ -25,6 +26,7 @@ public class GitFlowResourceProvisioner {
     private static final String BUILD_CONFIG_TEMPLATE_LOCATION = "/openshift/build-template.yaml";
     private final OpenShiftClient openShiftClient;
     private final OpenShiftClient remoteBuildClient;
+    private static final String CONTAINER_NAME = "httpd-server";
 
     public GitFlowResourceProvisioner(@Named("default")OpenShiftClient openShiftClient,
                                       @Named("build")OpenShiftClient remoteBuildClient) {
@@ -106,17 +108,30 @@ public class GitFlowResourceProvisioner {
         return Objects.nonNull(condition) && "True".equals(condition.getStatus());
     }
 
-    public Reader getDeploymentLog(String deploymentName, String ns, int upto){
+    public Reader getDeploymentLog(String deploymentName, String ns, int upto, boolean isHttpDeployment){
         LOG.debug("getDeploymentLog called with deploymentName: {}; namespace: {}; upto: {}", deploymentName, ns, upto);
-        return openShiftClient.apps().deployments().inNamespace(ns).withName(deploymentName)
+        Function<OpenShiftClient, Reader> deploymentLogFunction = client -> client.apps().deployments().inNamespace(ns).withName(deploymentName)
                 .tailingLines(upto).withPrettyOutput().getLogReader();
+        Function<OpenShiftClient, Reader> httpDeploymentFunction = client -> client.apps().deployments().inNamespace(ns)
+                .withName(deploymentName).inContainer(CONTAINER_NAME).getLogReader();
+
+        if (isHttpDeployment)
+            return httpDeploymentFunction.apply(openShiftClient);
+        return deploymentLogFunction.apply(openShiftClient);
     }
 
-    public Reader getPodLog(String podName, String ns, int upto){
-        LOG.debug("getPodLog called with podName: {}; namespace: {}; upto: {}", podName, ns, upto);
-        return openShiftClient.pods().inNamespace(ns).withName(podName)
+    public Reader getLog(String podName, String ns, int upto, boolean isHttpPod){
+        LOG.debug("getLog called with podName: {}; namespace: {}; upto: {}", podName, ns, upto);
+        Function<OpenShiftClient, Reader> podLogFunction = client -> client.pods().inNamespace(ns).withName(podName)
                 .tailingLines(upto).withPrettyOutput().getLogReader();
+        Function<OpenShiftClient, Reader> httpPodLogFunction = client -> client.pods().inNamespace(ns)
+                .withName(podName).inContainer(CONTAINER_NAME).tailingLines(upto).withPrettyOutput().getLogReader();
+        if(isHttpPod)
+            return httpPodLogFunction.apply(openShiftClient);
+        return podLogFunction.apply(openShiftClient);
     }
+
+
 
     // TODO simplify this method, use function composition style or break into sub methods
     public List<String> getPodNames(String deploymentName, String ns) {
