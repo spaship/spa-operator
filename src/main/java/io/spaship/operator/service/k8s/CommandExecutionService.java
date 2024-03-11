@@ -118,9 +118,22 @@ public class CommandExecutionService {
                     LOG.error("failed to delete target", e);
                     //todo :scope of improvement: throw a custom exception
                     throw new RuntimeException(e);
+                }catch (IllegalArgumentException e){
+                     LOG.error("failed to delete target", e);
+                    throw new IllegalArgumentException(e);
+                }
             }
+            case CREATE_SYMLINK -> {
+            try {
+                    yield createSymlink(selectedPod, sourceTargetTuple);
+                } catch (CommandExecutionException e) {
+                    LOG.error("failed to delete target", e);
+                    throw new RuntimeException(e);
+                } catch (IllegalArgumentException e){
+                    LOG.error("failed to delete target", e);
+                    throw new IllegalArgumentException(e);
+                }
             }
-            case CREATE_SYMLINK -> createSymlink(selectedPod, sourceTargetTuple);
         };
     }
 
