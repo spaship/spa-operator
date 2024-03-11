@@ -118,7 +118,7 @@ public class CommandExecutionService {
                     LOG.error("failed to delete target", e);
                     //todo :scope of improvement: throw a custom exception
                     throw new RuntimeException(e);
-                }
+            }
             }
             case CREATE_SYMLINK -> createSymlink(selectedPod, sourceTargetTuple);
         };
@@ -137,6 +137,7 @@ public class CommandExecutionService {
      * @throws CommandExecutionException if there is an error executing the command in the Pod
      */
     private CommandExecutionOutput deleteTarget(Pod targetPod, String target) throws CommandExecutionException {
+        target = (BASE_HTTP_DIR.concat("/").concat(target));
         var targetType = getTargetType(targetPod, target);
         LOG.debug("computed target type is {}", targetType);
         if (targetType == null) {
@@ -220,8 +221,15 @@ public class CommandExecutionService {
      * @throws RuntimeException if there is an error executing the command in the Pod
      */
     private CommandExecutionOutput createSymlink(Pod targetPod,
-                                                 Tuple2<String, String> sourceTargetTuple) {
-
+                                                 Tuple2<String, String> sourceTargetTuple) throws CommandExecutionException {
+        var targetType = getTargetType(targetPod, BASE_HTTP_DIR.concat("/").concat(sourceTargetTuple.getItem2()));
+        LOG.info("Target type is {}", targetType);
+        switch (targetType) {
+            case DIRECTORY -> {
+                throw new IllegalArgumentException(sourceTargetTuple.getItem2()+" already exists a directory. Please provide a valid target.");
+            }
+            // TODO : other cases to be added
+        };
         var command = buildSymbolicLinkCommand(sourceTargetTuple.getItem1(), sourceTargetTuple.getItem2());
         try {
             return new CommandExecutionOutput(targetPod.getMetadata().getName(),
@@ -243,7 +251,7 @@ public class CommandExecutionService {
      * @return the type of the target as a CommandExecutionEnums.TargetType enum value
      * @throws CommandExecutionException if there is an error executing the command in the Pod
      */
-    private CommandExecutionEnums.TargetType getTargetType(Pod targetPod, String target)
+    private CommandExecutionEnums.TargetType getTargetType(Pod targetPod, String target)  
             throws CommandExecutionException {
         var command = new String[]{"sh", "-c", "if [ -d " + target + " ]; " +
                 "then echo " + CommandExecutionEnums.TargetType.DIRECTORY +
