@@ -127,10 +127,10 @@ public class CommandExecutionService {
             try {
                     yield createSymlink(selectedPod, sourceTargetTuple);
                 } catch (CommandExecutionException e) {
-                    LOG.error("failed to delete target", e);
+                    LOG.error("failed to create target", e);
                     throw new RuntimeException(e);
                 } catch (IllegalArgumentException e){
-                    LOG.error("failed to delete target", e);
+                    LOG.error("failed to create target", e);
                     throw new IllegalArgumentException(e);
                 }
             }
