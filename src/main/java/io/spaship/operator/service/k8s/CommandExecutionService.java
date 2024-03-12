@@ -237,12 +237,7 @@ public class CommandExecutionService {
                                                  Tuple2<String, String> sourceTargetTuple) throws CommandExecutionException {
         var targetType = getTargetType(targetPod, BASE_HTTP_DIR.concat("/").concat(sourceTargetTuple.getItem2()));
         LOG.info("Target type is {}", targetType);
-        switch (targetType) {
-            case DIRECTORY -> {
-                throw new IllegalArgumentException(sourceTargetTuple.getItem2()+" already exists a directory. Please provide a valid target.");
-            }
-            // TODO : other cases to be added
-        };
+        if (targetType.equals(CommandExecutionEnums.TargetType.DIRECTORY)) { throw new IllegalArgumentException(sourceTargetTuple.getItem2()+" already exists as a directory. Please provide a valid target."); }
         var command = buildSymbolicLinkCommand(sourceTargetTuple.getItem1(), sourceTargetTuple.getItem2());
         try {
             return new CommandExecutionOutput(targetPod.getMetadata().getName(),
