@@ -167,7 +167,11 @@ public class CommandExecutionService {
                 var output = executeCommandInContainer(targetPod, command);
                 yield new CommandExecutionOutput(targetPod.getMetadata().getName(), output);
             }
-            case UNKNOWN -> throw new IllegalArgumentException("Invalid target type: UNKNOWN");
+            case UNKNOWN -> {
+                var command = new String[]{"sh", "-c", "rm -rf " + target};
+                var output = executeCommandInContainer(targetPod, command);
+                yield new CommandExecutionOutput(targetPod.getMetadata().getName(), output);
+            }
         };
     }
 
