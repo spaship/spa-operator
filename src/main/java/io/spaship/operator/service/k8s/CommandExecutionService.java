@@ -167,6 +167,11 @@ public class CommandExecutionService {
                 var output = executeCommandInContainer(targetPod, command);
                 yield new CommandExecutionOutput(targetPod.getMetadata().getName(), output);
             }
+            case BROKEN_SYMLINK -> {
+                var command = new String[]{"sh", "-c", "rm -rf " + target};
+                var output = executeCommandInContainer(targetPod, command);
+                yield new CommandExecutionOutput(targetPod.getMetadata().getName(), output);
+            }
             case UNKNOWN -> throw new IllegalArgumentException("Invalid target type: UNKNOWN");
         };
     }
@@ -264,6 +269,7 @@ public class CommandExecutionService {
         var command = new String[]{"sh", "-c", "if [ -d " + target + " ]; " +
                 "then echo " + CommandExecutionEnums.TargetType.DIRECTORY +
                 "; elif [ -f " + target + " ]; then echo " + CommandExecutionEnums.TargetType.FILE +
+                "; elif [ -L " + target + " ] && ! [ -e " + target + " ]; then " + "echo " + CommandExecutionEnums.TargetType.BROKEN_SYMLINK +
                 "; else echo " + CommandExecutionEnums.TargetType.UNKNOWN + "; fi"};
         LOG.debug("command to be executed for checking target type is {}", Arrays.toString(command));
         var output = executeCommandInContainer(targetPod, command).trim();
