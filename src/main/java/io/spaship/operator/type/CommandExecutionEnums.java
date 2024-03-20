@@ -17,5 +17,6 @@ public class CommandExecutionEnums {
         CHECK_TARGET_EXISTENCE,
         CREATE_SYMLINK,
         DELETE_TARGET,
+        BROKEN_SYMLINK,
     }
 }
