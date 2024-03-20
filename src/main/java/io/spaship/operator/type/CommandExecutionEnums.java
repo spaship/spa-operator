@@ -5,8 +5,10 @@ public class CommandExecutionEnums {
     public enum TargetType{
         FILE,
         DIRECTORY,
-        UNKNOWN
+        UNKNOWN,
+        BROKEN_SYMLINK
     }
+
     public enum Existence{
         EXISTS,
         DOES_NOT_EXIST
@@ -16,7 +18,6 @@ public class CommandExecutionEnums {
 
         CHECK_TARGET_EXISTENCE,
         CREATE_SYMLINK,
-        DELETE_TARGET,
-        BROKEN_SYMLINK,
+        DELETE_TARGET
     }
 }
