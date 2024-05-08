@@ -9,8 +9,8 @@ import io.spaship.operator.util.ReUsableItems;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Named;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Named;
 import java.io.InputStream;
 import java.io.Reader;
 import java.util.*;

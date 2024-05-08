@@ -13,7 +13,7 @@ import io.spaship.operator.util.ReUsableItems;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.context.ApplicationScoped;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;

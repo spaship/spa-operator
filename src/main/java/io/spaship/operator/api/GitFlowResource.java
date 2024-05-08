@@ -12,7 +12,7 @@ import io.spaship.operator.business.GitFlowRequestProcessor;
 import io.spaship.operator.type.*;
 import io.vertx.ext.web.RoutingContext;
 
-import javax.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.context.ApplicationScoped;
 import java.util.List;
 
 
