@@ -94,7 +94,6 @@ public class K8sClientProducer {
     configBuilder.withTrustCerts(true)
       .withConnectionTimeout(600000)
       .withRequestTimeout(600000)
-      .withWebsocketTimeout(600000)
       .withWebsocketPingInterval(600000)
       .withUploadConnectionTimeout(600000)
       .withUploadRequestTimeout(600000);
@@ -116,7 +115,6 @@ public class K8sClientProducer {
             .withMasterUrl(ConfigProvider.getConfig().getValue("mpp.remote.build.cluster.master.url", String.class))
             .withConnectionTimeout(600000)
             .withRequestTimeout(600000)
-            .withWebsocketTimeout(600000)
             .withWebsocketPingInterval(600000)
             .withUploadConnectionTimeout(600000)
             .withUploadRequestTimeout(600000);
