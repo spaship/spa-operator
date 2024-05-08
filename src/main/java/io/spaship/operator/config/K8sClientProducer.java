@@ -9,9 +9,9 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.enterprise.inject.Produces;
-import jakarta.inject.Named;
-import jakarta.inject.Singleton;
+import javax.enterprise.inject.Produces;
+import javax.inject.Named;
+import javax.inject.Singleton;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -95,7 +95,6 @@ public class K8sClientProducer {
       .withConnectionTimeout(600000)
       .withRequestTimeout(600000)
       .withWebsocketPingInterval(600000)
-      .withUploadConnectionTimeout(600000)
       .withUploadRequestTimeout(600000);
     return kubernetesClientBuilder.withConfig(configBuilder.build()).build().adapt(OpenShiftClient.class);
   }
@@ -116,7 +115,6 @@ public class K8sClientProducer {
             .withConnectionTimeout(600000)
             .withRequestTimeout(600000)
             .withWebsocketPingInterval(600000)
-            .withUploadConnectionTimeout(600000)
             .withUploadRequestTimeout(600000);
     return kubernetesClientBuilder
             .withConfig(configBuilder.build()).build().adapt(OpenShiftClient.class);
