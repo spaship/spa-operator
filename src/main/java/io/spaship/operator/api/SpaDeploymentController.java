@@ -13,8 +13,8 @@ import org.jboss.resteasy.reactive.MultipartForm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.UUID;

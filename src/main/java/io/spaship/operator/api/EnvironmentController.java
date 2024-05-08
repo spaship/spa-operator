@@ -8,8 +8,8 @@ import io.spaship.operator.type.Environment;
 import io.spaship.operator.type.OperationResponse;
 import io.quarkus.security.Authenticated;
 
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import java.util.Objects;
 
 @Path("environment")
