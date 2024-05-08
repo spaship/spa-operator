@@ -32,6 +32,11 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+          <dependency>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-kubernetes-client</artifactId>
+        <version>2.7.7.Final</version>
+    </dependency>
     </dependencies>
   </dependencyManagement>
   <dependencies>
@@ -66,11 +71,6 @@
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-logging-json</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>io.quarkus</groupId>
-        <artifactId>quarkus-kubernetes-client</artifactId>
-        <version>2.7.7.Final</version>
     </dependency>
 
 
