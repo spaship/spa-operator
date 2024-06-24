@@ -25,6 +25,9 @@ public class FormData {
   @RestForm("spa")
   public FileUpload file;
 
+  @RestForm("rebuild")
+  public boolean rebuildEnvironment;
+
   public String fileName() {
     validateFileUpload();
     return this.file.fileName();

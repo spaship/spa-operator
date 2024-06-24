@@ -45,7 +45,9 @@ public class SpaDeploymentController {
     var response = requestTagging(formData.website);
     //[0]file-path[1]unique-trace-id[2]website-name
     var fileUploadParams = new Triplet<>(formData.getfilePath(), response, formData.website);
-    spaUploadHandlerService.handleFileUpload(fileUploadParams);
+
+    spaUploadHandlerService.handleFileUpload(fileUploadParams,formData.rebuildEnvironment);
+
     JsonObject object = new JsonObject();
     object.put("description", response.getValue0());
     object.put("traceId", response.getValue1());

@@ -50,7 +50,7 @@ public class SPAUploadHandler {
 
 
   //[0]file-store-path[1]ops-tracing-id[2]website-name
-  public void handleFileUpload(Triplet<Path, Pair<String, UUID>, String> input) {
+  public void handleFileUpload(Triplet<Path, Pair<String, UUID>, String> input, boolean rebuildEnvironment) {
     LOG.debug("     deployment process initiated with details {}", input);
 
     Uni.createFrom()
@@ -59,7 +59,7 @@ public class SPAUploadHandler {
       .map(this::buildEnvironmentList)
       .onItem()
       .transformToMulti(envList -> Multi.createFrom().iterable(envList))
-      .map(this::processEnvironment)
+      .map((Environment env) -> processEnvironment(env, rebuildEnvironment))
       .map(this::createOrUpdateSPA)
       .onFailure()
       .recoverWithItem(throwable -> {
@@ -232,7 +232,7 @@ public class SPAUploadHandler {
     }
   }
 
-  private OperationResponse processEnvironment(Environment env) {
+  private OperationResponse processEnvironment(Environment env, boolean rebuildEnvironment) {
     if (env.isUpdateRestriction() && k8sOperator.environmentExists(env)) {
       LOG.debug("environment exists but update restriction enforced, " +
         "environment details are as follows {}", env);
@@ -253,7 +253,7 @@ public class SPAUploadHandler {
         .build();
     }
 
-    return k8sOperator.createOrUpdateEnvironment(env);
+    return k8sOperator.createOrUpdateEnvironment(env, rebuildEnvironment);
   }
 
   private OperationResponse appDeleteOps(Environment environment) {

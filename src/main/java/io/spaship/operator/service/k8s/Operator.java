@@ -67,7 +67,9 @@ public class Operator implements Operations {
         return propertyValue;
     }
 
-    public OperationResponse createOrUpdateEnvironment(Environment environment) {
+
+
+    public OperationResponse createOrUpdateEnvironment(Environment environment, boolean rebuildEnvironment) {
 
         propertyValidation();
 
@@ -75,7 +77,7 @@ public class Operator implements Operations {
 
         boolean envExists = environmentExists(environment);
         LOG.debug("envExists is {}", envExists);
-        if (!envExists)
+        if (!envExists || rebuildEnvironment)
             createNewEnvironment(environment);
         String sideCarSvcUrl = environmentSidecarUrl(environment);
         // todo mutability is not good, we should not change the state of the object
