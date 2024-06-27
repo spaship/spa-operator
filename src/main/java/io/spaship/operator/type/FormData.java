@@ -26,7 +26,7 @@ public class FormData {
   public FileUpload file;
 
   @RestForm("rebuild")
-  public boolean rebuildEnvironment;
+  public String rebuildEnvironment;
 
   public String fileName() {
     validateFileUpload();
