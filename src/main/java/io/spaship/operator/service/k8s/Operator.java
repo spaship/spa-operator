@@ -67,7 +67,9 @@ public class Operator implements Operations {
         return propertyValue;
     }
 
-    public OperationResponse createOrUpdateEnvironment(Environment environment) {
+
+
+    public OperationResponse createOrUpdateEnvironment(Environment environment, boolean rebuildEnvironment) {
 
         propertyValidation();
 
@@ -75,8 +77,8 @@ public class Operator implements Operations {
 
         boolean envExists = environmentExists(environment);
         LOG.debug("envExists is {}", envExists);
-        if (!envExists)
-            createNewEnvironment(environment);
+        if (!envExists || rebuildEnvironment)
+            createNewEnvironment(environment, rebuildEnvironment);
         String sideCarSvcUrl = environmentSidecarUrl(environment);
         // todo mutability is not good, we should not change the state of the object
         environment.setOperationPerformed(true);
@@ -140,12 +142,13 @@ public class Operator implements Operations {
 
     }
 
-    void createNewEnvironment(Environment environment) {
-        if (!nameSpaceExists(environment))
+    void createNewEnvironment(Environment environment, boolean rebuildEnvironment) {
+        if (!rebuildEnvironment && !nameSpaceExists(environment)) {
             createMpPlusProject(environment);
+        }
         KubernetesList result = buildK8sResourceList(environment);
         LOG.debug("create environment is in progress");
-        processK8sList(result, environment.getTraceID(), environment.getNameSpace());
+        processK8sList(result, environment.getTraceID(), environment.getNameSpace(),rebuildEnvironment);
     }
 
     // TODO: this implementation is mp+ specific, using inheritance
@@ -373,7 +376,7 @@ public class Operator implements Operations {
     }
 
     // TODO remove if blocks
-    private void processK8sList(KubernetesList result, UUID tracing, String nameSpace) {
+    private void processK8sList(KubernetesList result, UUID tracing, String nameSpace, boolean rebuildEnvironment) {
 
         var eb = EventStructure.builder().uuid(tracing.toString());
 
@@ -400,7 +403,7 @@ public class Operator implements Operations {
                         .state("StatefulSet created");
 
             }
-            if (item instanceof PersistentVolumeClaim pvc) {
+            if (!rebuildEnvironment && item instanceof PersistentVolumeClaim pvc) {
                 LOG.debug("creating new pvc in K8s, tracing = {}", tracing);
                 ocClient.persistentVolumeClaims().inNamespace(nameSpace).resource(pvc).createOrReplace();
                 eb.websiteName(item.getMetadata().getLabels().get(ApplicationConstants.WEBSITE))
