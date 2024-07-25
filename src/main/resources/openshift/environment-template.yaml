@@ -231,6 +231,7 @@ objects:
       ROUTER_PORT: '8080'
       forwarded_host: ""
       target: http://svc-${APP_INSTANCE_PREFIX}-${WEBSITE}-${ENV}
+      allowed_hosts: route-${WEBSITE}-${ENV}-${APP_INSTANCE_PREFIX}.${ROUTER_DOMAIN}
       webroot: '/var/www/html'
   - kind: Service
     apiVersion: v1
