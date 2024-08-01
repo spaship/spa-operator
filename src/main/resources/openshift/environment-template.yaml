@@ -288,7 +288,7 @@ objects:
         spec:
           containers:
             - name: spaship-router
-              image: quay.io/spaship/router
+              image: quay.io/spaship/router:v1.0.0
               imagePullPolicy: IfNotPresent
               resources:
                 requests:
