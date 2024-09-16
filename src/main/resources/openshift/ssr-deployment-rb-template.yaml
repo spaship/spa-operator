@@ -104,7 +104,7 @@ objects:
           environment: ${ENV}
           app: ${APP}
           app.mpp.io/managed-by: spaship
-      replicas: 1
+      replicas: ${REPLICAS}
       template:
         metadata:
           labels:
@@ -228,4 +228,8 @@ parameters:
     required: true
   - name: "APP_INSTANCE_PREFIX"
     description: "application instance prefix"
+    required: true
+  - name: "REPLICAS"
+    value: "1"
+    description: "replicas for the application"
     required: true
