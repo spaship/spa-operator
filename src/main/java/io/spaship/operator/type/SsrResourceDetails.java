@@ -18,15 +18,14 @@ public record SsrResourceDetails
          String website,
          String environment,
          String port,
+         Map<String, String> configMap,
+         Map<String, String> secretMap,
+         String cmdbCode,
          String requiredCpu,
          String requiredMemory,
          String limitCpu,
          String limitMemory,
-         String replicas,
-
-         Map<String, String> configMap,
-         Map<String, String> secretMap,
-         String cmdbCode
+         String replicas
         ) {
 
     private static final Logger LOG =

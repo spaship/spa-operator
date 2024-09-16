@@ -144,7 +144,11 @@ public record GitFlowMeta(SsrResourceDetails deploymentDetails, String gitRef, S
                 , deploymentDetails.app(), deploymentDetails.contextPath(),
                 deploymentDetails.healthCheckPath(), deploymentDetails.website(),
                 deploymentDetails.environment(), deploymentDetails.port(), deploymentDetails.configMap()
-                ,deploymentDetails.secretMap(),deploymentDetails.cmdbCode());
+                ,deploymentDetails.secretMap(),deploymentDetails.cmdbCode(),
+                deploymentDetails.requiredCpu(), deploymentDetails.requiredMemory(),
+                deploymentDetails.limitCpu(), deploymentDetails.limitMemory(),
+                deploymentDetails.replicas()
+                );
     }
 
     public GitFlowMeta newGitFlowMetaWithBuildName(String buildName) {
