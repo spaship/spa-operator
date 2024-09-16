@@ -18,6 +18,12 @@ public record SsrResourceDetails
          String website,
          String environment,
          String port,
+         String requiredCpu,
+         String requiredMemory,
+         String limitCpu,
+         String limitMemory,
+         String replicas,
+
          Map<String, String> configMap,
          Map<String, String> secretMap,
          String cmdbCode
@@ -44,9 +50,19 @@ public record SsrResourceDetails
             params.put("ENV", environment);
         if (Objects.nonNull(port))
             params.put("CONPORT", port);
-
         if (Objects.nonNull(cmdbCode))
             params.put("CMDB_CODE", cmdbCode);
+            
+        if (Objects.nonNull(requiredCpu))
+            params.put("RESOURCE-REQ-CPU", requiredCpu);
+        if (Objects.nonNull(requiredMemory))
+            params.put("RESOURCE-REQ-MEM", requiredMemory);
+        if (Objects.nonNull(limitCpu))
+            params.put("RESOURCE-REQ-MEM", limitCpu);
+        if (Objects.nonNull(limitMemory))
+            params.put("RESOURCE-LIM-MEM", limitCpu);
+        if (Objects.nonNull(replicas))
+            params.put("REPLICAS", limitCpu);
 
         var routerDomain = fetchRouterDomain();
         if (Objects.nonNull(routerDomain))
