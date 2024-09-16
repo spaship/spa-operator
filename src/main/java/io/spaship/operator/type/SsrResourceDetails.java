@@ -61,7 +61,7 @@ public record SsrResourceDetails
         if (Objects.nonNull(limitMemory))
             params.put("RESOURCE-LIM-MEM", limitCpu);
         if (Objects.nonNull(replicas))
-            params.put("REPLICAS", limitCpu);
+            params.put("REPLICAS", replicas);
 
         var routerDomain = fetchRouterDomain();
         if (Objects.nonNull(routerDomain))
