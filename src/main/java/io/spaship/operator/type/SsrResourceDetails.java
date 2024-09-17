@@ -57,7 +57,7 @@ public record SsrResourceDetails
         if (Objects.nonNull(requiredMemory))
             params.put("RESOURCE-REQ-MEM", requiredMemory);
         if (Objects.nonNull(limitCpu))
-            params.put("RESOURCE-REQ-MEM", limitCpu);
+            params.put("RESOURCE-LIM-CPU", limitCpu);
         if (Objects.nonNull(limitMemory))
             params.put("RESOURCE-LIM-MEM", limitCpu);
         if (Objects.nonNull(replicas))
