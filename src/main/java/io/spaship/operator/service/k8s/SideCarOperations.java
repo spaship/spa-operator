@@ -44,7 +44,8 @@ public class SideCarOperations {
     WebClientOptions options = new WebClientOptions()
         .setUserAgent("spaship-operator/0.0.1")
         .setIdleTimeout(300) // Increase idle timeout for large uploads
-        .setConnectTimeout(30000); // Increase connection timeout
+        .setConnectTimeout(90000); // Increase connection timeout
+        .setMaxRedirects(5); 
     this.client = WebClient.create(vertx, options);
 
     this.eventManager = eventManager;
