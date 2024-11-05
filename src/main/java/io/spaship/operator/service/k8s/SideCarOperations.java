@@ -42,7 +42,9 @@ public class SideCarOperations {
       Operator k8sOperator) {
     this.k8sOperator = k8sOperator;
     WebClientOptions options = new WebClientOptions()
-        .setUserAgent("spaship-operator/0.0.1");
+        .setUserAgent("spaship-operator/0.0.1")
+        .setIdleTimeout(300) // Increase idle timeout for large uploads
+        .setConnectTimeout(30000); // Increase connection timeout
     this.client = WebClient.create(vertx, options);
 
     this.eventManager = eventManager;
@@ -50,7 +52,7 @@ public class SideCarOperations {
 
   // TODO 1. remove manual thread handling 2. replace hard coded time with pod
   // ready status
-  public void asyncCreateOrUpdateSPDirectory(OperationResponse operationResponse) {
+    public void asyncCreateOrUpdateSPDirectory(OperationResponse operationResponse) {
     executor.submit(() -> {
       var envName = operationResponse.getEnvironmentName();
       if (operationResponse.getStatus() == 1)
@@ -124,7 +126,7 @@ public class SideCarOperations {
   }
 
   @SneakyThrows
-  // TODO break into multiple methods
+    // TODO break into multiple methods
   private OperationResponse createOrUpdateSPDirectory(OperationResponse operationResponse) {
     var sideCarUrl = operationResponse.getSideCarServiceUrl().replace("tcp", "http");
     var environment = operationResponse.getEnvironment();
@@ -178,7 +180,7 @@ public class SideCarOperations {
 
     return opResp;
   }
-
+  
   // hell of a detail :D
   private String computeEnvironmentUri(Environment environment) {
     var appInstancePrefix = ConfigProvider.getConfig().getValue("app.instance", String.class);
@@ -213,20 +215,20 @@ public class SideCarOperations {
 
   private OperationResponse fallbackResponse(OperationResponse.OperationResponseBuilder responseOnFailure,
       Throwable e) {
-    LOG.error("sidecar upload ops failed due to {}", e.getMessage());
-    return responseOnFailure.errorMessage(e.getMessage()).build();
-  }
+        LOG.error("sidecar upload ops failed due to {}", e.getMessage());
+        return responseOnFailure.errorMessage(e.getMessage()).build();
+    }
 
   private OperationResponse apply(OperationResponse.OperationResponseBuilder responseOnFailure,
       HttpResponse<Buffer> item) {
-    var responseFromSidecar = item.bodyAsJson(OperationResponse.class);
-    if (Objects.isNull(responseFromSidecar))
-      return responseOnFailure.errorMessage("status code: "
-          .concat(Integer.toString(item.statusCode()))
-          .concat(" message: ")
-          .concat(item.statusMessage())).build();
-    LOG.debug("sidecar response if  {}", responseFromSidecar);
-    return responseFromSidecar;
-  }
+        var responseFromSidecar = item.bodyAsJson(OperationResponse.class);
+        if (Objects.isNull(responseFromSidecar))
+            return responseOnFailure.errorMessage("status code: "
+                    .concat(Integer.toString(item.statusCode()))
+                    .concat(" message: ")
+                    .concat(item.statusMessage())).build();
+        LOG.debug("sidecar response if  {}", responseFromSidecar);
+        return responseFromSidecar;
+    }
 
 }
