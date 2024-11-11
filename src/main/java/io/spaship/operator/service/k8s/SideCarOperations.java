@@ -43,9 +43,10 @@ public class SideCarOperations {
     this.k8sOperator = k8sOperator;
     WebClientOptions options = new WebClientOptions()
         .setUserAgent("spaship-operator/0.0.1")
-        .setIdleTimeout(300) // Increase idle timeout for large uploads
-        .setConnectTimeout(90000) // Increase connection timeout
+        .setConnectTimeout(500000) // Increase the connection timeout if necessary
+        .setIdleTimeout(600000)  // Increase idle timeout if the connection is idle too long
         .setMaxRedirects(5); 
+
     this.client = WebClient.create(vertx, options);
 
     this.eventManager = eventManager;
@@ -108,7 +109,7 @@ public class SideCarOperations {
     var requestUri = host.concat(":").concat(port).concat("/api/sync");
     LOG.info("sidecar env {} url, {}", environment, requestUri);
 
-    waitForReadiness(environment, 15);
+    waitForReadiness(environment, 150);
 
     return client.requestAbs(HttpMethod.POST, requestUri)
         .sendJson(syncConfig)
