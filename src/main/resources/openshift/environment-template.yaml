@@ -174,11 +174,11 @@ objects:
                 periodSeconds: 10
               resources:
                 requests:
-                  cpu: 200m
-                  memory: 256Mi
-                limits:
                   cpu: 600m
-                  memory: 768Mi
+                  memory: 1Gi
+                limits:
+                  cpu: 1500m
+                  memory: 2Gi
               ports:
                 - containerPort: 8081
               env:
