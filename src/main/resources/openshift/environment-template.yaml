@@ -24,7 +24,7 @@ parameters:
     value: "1.3.6"
     required: false
   - name: "IMAGE_API_VERSION"
-    value: "v1.5.2"
+    value: "fix-processing-files"
     required: false
   - name: "DOMAIN"
     required: true
