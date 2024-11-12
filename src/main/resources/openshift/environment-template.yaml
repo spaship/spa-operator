@@ -340,30 +340,6 @@ objects:
   - kind: HorizontalPodAutoscaler
     apiVersion: autoscaling/v2
     metadata:
-      name: hpa-${WEBSITE}-${ENV}
-    spec:
-      scaleTargetRef:
-        apiVersion: apps/v1
-        kind: Deployment
-        name: ${WEBSITE}-${ENV}
-      minReplicas: 1
-      maxReplicas: 4
-      metrics:
-        - type: Resource
-          resource:
-            name: cpu
-            target:
-              type: Utilization
-              averageUtilization: 80
-        - type: Resource
-          resource:
-            name: memory
-            target:
-              type: Utilization
-              averageUtilization: 75
-  - kind: HorizontalPodAutoscaler
-    apiVersion: autoscaling/v2
-    metadata:
       name: hpa-router-${WEBSITE}-${ENV}
     spec:
       scaleTargetRef:
