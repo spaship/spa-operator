@@ -42,9 +42,11 @@ public class SideCarOperations {
       Operator k8sOperator) {
     this.k8sOperator = k8sOperator;
     WebClientOptions options = new WebClientOptions()
-        .setUserAgent("spaship-operator/0.0.1");
-    this.client = WebClient.create(vertx, options);
+        .setUserAgent("spaship-operator/0.0.1")
+        .setConnectTimeout(500000)
+        .setIdleTimeout(600000); 
 
+    this.client = WebClient.create(vertx, options);
     this.eventManager = eventManager;
   }
 
