@@ -175,7 +175,7 @@ objects:
               resources:
                 requests:
                   cpu: 600m
-                  memory: 1Gi
+                  memory: 50Gi
                 limits:
                   cpu: 1500m
                   memory: 2Gi
