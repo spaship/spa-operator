@@ -32,6 +32,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -439,7 +440,7 @@ public class Operator implements Operations {
 
     }
 
-    public ConfigMap updateConfigMap(Environment environment, Object syncConfig) {
+    public ConfigMap updateConfigMap(Environment environment, Object syncConfig, Optional<String> userAgent) {
 
         var configMapName = "sidecar-config-"
                 .concat(environment.getWebsiteName().toLowerCase())
@@ -448,6 +449,7 @@ public class Operator implements Operations {
         var cfgMapData = ocClient.configMaps().inNamespace(environment.getNameSpace()).withName(configMapName).get();
         var existingConfigData = cfgMapData.getData();
         existingConfigData.put("SIDECAR_SYNC_CONFIG", syncConfig.toString());
+        userAgent.ifPresent(ua -> existingConfigData.put("SIDECAR_SYNC_USER_AGENT", ua));
         cfgMapData.setData(existingConfigData);
         return ocClient.configMaps().inNamespace(environment.getNameSpace()).createOrReplace(cfgMapData);
     }

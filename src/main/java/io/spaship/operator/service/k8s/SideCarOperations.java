@@ -20,10 +20,14 @@ import org.eclipse.microprofile.config.ConfigProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+
 import javax.enterprise.context.ApplicationScoped;
 import java.io.File;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -36,6 +40,9 @@ public class SideCarOperations {
                                                                              // will only support 10 environments at a
                                                                              // time
   private final Operator k8sOperator;
+
+  @ConfigProperty(name = "operator.sync.user-agent")
+  Optional<String> syncUserAgent;
 
   public SideCarOperations(Vertx vertx,
       EventManager eventManager,
@@ -64,7 +71,10 @@ public class SideCarOperations {
   public Uni<String> triggerSyncAsync(String syncConfig, Environment environment) {
 
     ObjectMapper objectMapper = new ObjectMapper();
-    Object syncJson = objectMapper.readValue(syncConfig, Object.class);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> syncJson = objectMapper.readValue(syncConfig, Map.class);
+
+    syncUserAgent.ifPresent(ua -> syncJson.put("userAgent", ua));
 
     LOG.info("converted String into Object");
 
@@ -91,7 +101,7 @@ public class SideCarOperations {
   private Uni<?> updateSideCarConfigMap(Object syncConfig, Environment environment) {
     return Uni.createFrom().item(syncConfig)
         .runSubscriptionOn(Infrastructure.getDefaultExecutor())
-        .map(syncCfg -> k8sOperator.updateConfigMap(environment, syncConfig));
+        .map(syncCfg -> k8sOperator.updateConfigMap(environment, syncConfig, syncUserAgent));
   }
 
   @SneakyThrows
