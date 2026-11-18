@@ -88,5 +88,7 @@ COPY --chown=185 target/quarkus-app/quarkus/ /deployments/quarkus/
 
 EXPOSE 8080
 USER 185
-ENV JAVA_OPTS="-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager -Xms64m -Xmx1024m"
+# RHSB-2026-018 / CVE-2026-114938 (java4shell): disable accelerated Base64 until
+# a patched ubi8/openjdk-17 base image is available; remove after rebuild on fix.
+ENV JAVA_OPTS="-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager -Xms64m -Xmx1024m -XX:-UseBASE64Intrinsics"
 ENV JAVA_APP_JAR="/deployments/quarkus-run.jar"
